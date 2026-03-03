@@ -8,7 +8,7 @@ export const environment: AppEnvironment = {
     projectId: "paint-ledger",
     storageBucket: "paint-ledger.firebasestorage.app",
     messagingSenderId: "312154427511",
-    appId: "1:312154427511:web:b77cf6e0f0e5d407323672",
-    measurementId: "G-XLSVG2NLQE"
+    appId: "1:312154427511:web:ea6b1da108c0bf45323672",
+    measurementId: "G-K05RBSFM4T"
   }
 };
