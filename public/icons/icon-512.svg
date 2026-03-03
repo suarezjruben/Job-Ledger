@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="JobLedger">
+  <defs>
+    <linearGradient id="bg512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f6c453" />
+      <stop offset="100%" stop-color="#5eead4" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="#08111b" />
+  <rect x="44" y="44" width="424" height="424" rx="88" fill="url(#bg512)" />
+  <path d="M144 190h54v139c0 26 13 41 42 41 29 0 42-15 42-41V190h54v145c0 64-39 102-96 102-57 0-96-38-96-102V190Zm174 0h58l58 88 60-88h18v139h-54v-41l-24 34h-11l-24-34v41h-53V190Z" fill="#071018" />
+</svg>

@@ -1,0 +1,137 @@
+import { Timestamp } from 'firebase/firestore';
+
+export const JOB_STATUSES = [
+  'scheduled',
+  'in_progress',
+  'completed',
+  'invoiced',
+  'canceled',
+  'archived'
+] as const;
+
+export const INVOICE_STATUSES = ['draft', 'issued', 'paid', 'void', 'archived'] as const;
+export const LINE_ITEM_KINDS = ['labor', 'material', 'custom'] as const;
+export const ATTACHMENT_KINDS = ['photo', 'document'] as const;
+
+export type JobStatus = (typeof JOB_STATUSES)[number];
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+export type LineItemKind = (typeof LINE_ITEM_KINDS)[number];
+export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
+
+export interface PostalAddress {
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+}
+
+export interface ClientRecord {
+  id: string;
+  displayName: string;
+  companyName?: string;
+  billingEmail?: string;
+  phone?: string;
+  billingAddress?: PostalAddress;
+  serviceAddress?: PostalAddress;
+  notes?: string;
+  archivedAt: Timestamp | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface JobLineItem {
+  id: string;
+  kind: LineItemKind;
+  description: string;
+  quantity: number;
+  unitLabel: string;
+  unitPriceCents: number;
+  totalCents: number;
+}
+
+export interface JobRecord {
+  id: string;
+  clientId: string;
+  title: string;
+  address?: PostalAddress;
+  description?: string;
+  notes?: string;
+  status: JobStatus;
+  startDate: string;
+  endDate: string;
+  lineItems: JobLineItem[];
+  invoiceId: string | null;
+  attachmentCount: number;
+  archivedAt: Timestamp | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface JobAttachmentRecord {
+  id: string;
+  jobId: string;
+  kind: AttachmentKind;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  storagePath: string;
+  createdAt: Timestamp;
+}
+
+export interface InvoiceClientSnapshot {
+  displayName: string;
+  companyName?: string;
+  billingEmail?: string;
+  phone?: string;
+  billingAddress?: PostalAddress;
+}
+
+export interface InvoiceJobSnapshot {
+  title: string;
+  address?: PostalAddress;
+  startDate: string;
+  endDate: string;
+  description?: string;
+}
+
+export interface InvoiceRecord {
+  id: string;
+  invoiceNumber: string;
+  jobId: string;
+  clientId: string;
+  status: InvoiceStatus;
+  lineItems: JobLineItem[];
+  subtotalCents: number;
+  clientSnapshot: InvoiceClientSnapshot;
+  jobSnapshot: InvoiceJobSnapshot;
+  pdfStoragePath: string | null;
+  issuedAt: Timestamp | null;
+  paidAt: Timestamp | null;
+  archivedAt: Timestamp | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface BusinessProfile {
+  businessName: string;
+  contactEmail: string;
+  phone?: string;
+  mailingAddress?: PostalAddress;
+  invoicePrefix: string;
+  nextInvoiceSequence: number;
+}
+
+export interface HistoryEntry {
+  id: string;
+  kind: 'job' | 'invoice';
+  title: string;
+  subtitle: string;
+  status: string;
+  clientId: string;
+  primaryDate: string;
+  secondaryDate?: string;
+  amountCents?: number;
+  route: string;
+  archived: boolean;
+}
