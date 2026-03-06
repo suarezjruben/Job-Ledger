@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '@ngx-translate/core';
+import { AppI18nService } from '../../core/services/app-i18n.service';
 import { ClientsRepository } from '../../core/services/clients.repository';
 import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { JobsRepository } from '../../core/services/jobs.repository';
@@ -10,22 +12,22 @@ import { ClientRecord } from '../../core/models';
 @Component({
   selector: 'app-client-list-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid single">
       <article class="panel stack-lg">
         <div class="page-header">
           <div>
-            <p class="eyebrow">Clients</p>
-            <h2>Billing and service contacts</h2>
+            <p class="eyebrow">{{ 'clients.list.eyebrow' | translate }}</p>
+            <h2>{{ 'clients.list.title' | translate }}</h2>
           </div>
 
-          <a class="primary-button" routerLink="/clients/new">New client</a>
+          <a class="primary-button" routerLink="/clients/new">{{ 'clients.list.newClient' | translate }}</a>
         </div>
 
         <label class="field">
-          <span>Search clients</span>
+          <span>{{ 'clients.list.searchLabel' | translate }}</span>
           <input type="search" [value]="search()" (input)="search.set(($any($event.target)).value)" />
         </label>
 
@@ -36,7 +38,7 @@ import { ClientRecord } from '../../core/models';
         <div class="stack-lg">
           <section class="stack-md">
             <div class="section-heading">
-              <h3>Active</h3>
+              <h3>{{ 'clients.list.sections.active' | translate }}</h3>
               <span>{{ activeClients().length }}</span>
             </div>
 
@@ -47,14 +49,16 @@ import { ClientRecord } from '../../core/models';
                     <div class="record-card__top">
                       <div>
                         <h3>{{ client.displayName }}</h3>
-                        <p>{{ client.companyName || client.billingEmail || 'No billing info yet' }}</p>
+                        <p>{{ client.companyName || client.billingEmail || ('clients.list.noBillingInfo' | translate) }}</p>
                       </div>
-                      <a class="text-link" [routerLink]="['/clients', client.id]">Edit</a>
+                      <a class="text-link" [routerLink]="['/clients', client.id]">{{ 'common.edit' | translate }}</a>
                     </div>
 
                     <div class="tag-row">
-                      <span class="pill">{{ stats(client).jobs }} jobs</span>
-                      <span class="pill">{{ stats(client).invoices }} invoices</span>
+                      <span class="pill">{{ 'clients.list.jobsCount' | translate:{ count: stats(client).jobs } }}</span>
+                      <span class="pill">
+                        {{ 'clients.list.invoicesCount' | translate:{ count: stats(client).invoices } }}
+                      </span>
                     </div>
 
                     @if (client.phone) {
@@ -62,9 +66,13 @@ import { ClientRecord } from '../../core/models';
                     }
 
                     <div class="actions wrap">
-                      <button type="button" class="secondary-button" (click)="archive(client)">Archive</button>
+                      <button type="button" class="secondary-button" (click)="archive(client)">
+                        {{ 'common.archive' | translate }}
+                      </button>
                       @if (canDelete(client)) {
-                        <button type="button" class="ghost-button" (click)="delete(client)">Delete</button>
+                        <button type="button" class="ghost-button" (click)="delete(client)">
+                          {{ 'common.delete' | translate }}
+                        </button>
                       }
                     </div>
                   </article>
@@ -72,15 +80,15 @@ import { ClientRecord } from '../../core/models';
               </div>
             } @else {
               <div class="empty-state compact">
-                <h3>No active clients</h3>
-                <p>Add a client before you start logging work.</p>
+                <h3>{{ 'clients.list.emptyActive.title' | translate }}</h3>
+                <p>{{ 'clients.list.emptyActive.body' | translate }}</p>
               </div>
             }
           </section>
 
           <section class="stack-md">
             <div class="section-heading">
-              <h3>Archived</h3>
+              <h3>{{ 'clients.list.sections.archived' | translate }}</h3>
               <span>{{ archivedClients().length }}</span>
             </div>
 
@@ -91,26 +99,30 @@ import { ClientRecord } from '../../core/models';
                     <div class="record-card__top">
                       <div>
                         <h3>{{ client.displayName }}</h3>
-                        <p>{{ client.companyName || client.billingEmail || 'Archived record' }}</p>
+                        <p>{{ client.companyName || client.billingEmail || ('clients.list.archivedRecord' | translate) }}</p>
                       </div>
-                      <a class="text-link" [routerLink]="['/clients', client.id]">View</a>
+                      <a class="text-link" [routerLink]="['/clients', client.id]">{{ 'common.view' | translate }}</a>
                     </div>
 
                     <div class="tag-row">
-                      <span class="pill">{{ stats(client).jobs }} jobs</span>
-                      <span class="pill">{{ stats(client).invoices }} invoices</span>
+                      <span class="pill">{{ 'clients.list.jobsCount' | translate:{ count: stats(client).jobs } }}</span>
+                      <span class="pill">
+                        {{ 'clients.list.invoicesCount' | translate:{ count: stats(client).invoices } }}
+                      </span>
                     </div>
 
                     <div class="actions wrap">
-                      <button type="button" class="secondary-button" (click)="restore(client)">Restore</button>
+                      <button type="button" class="secondary-button" (click)="restore(client)">
+                        {{ 'common.restore' | translate }}
+                      </button>
                     </div>
                   </article>
                 }
               </div>
             } @else {
               <div class="empty-state compact">
-                <h3>No archived clients</h3>
-                <p>Archived records remain available for history and invoice snapshots.</p>
+                <h3>{{ 'clients.list.emptyArchived.title' | translate }}</h3>
+                <p>{{ 'clients.list.emptyArchived.body' | translate }}</p>
               </div>
             }
           </section>
@@ -123,6 +135,7 @@ export class ClientListPageComponent {
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly jobsRepository = inject(JobsRepository);
   private readonly invoicesRepository = inject(InvoicesRepository);
+  private readonly i18n = inject(AppI18nService);
 
   readonly search = signal('');
   readonly error = signal('');
@@ -149,7 +162,7 @@ export class ClientListPageComponent {
     try {
       await this.clientsRepository.archiveClient(client.id);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to archive client.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('clients.list.errors.archive'));
     }
   }
 
@@ -157,24 +170,24 @@ export class ClientListPageComponent {
     try {
       await this.clientsRepository.restoreClient(client.id);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to restore client.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('clients.list.errors.restore'));
     }
   }
 
   async delete(client: ClientRecord): Promise<void> {
     if (!this.canDelete(client)) {
-      this.error.set('Clients with job or invoice history must be archived instead.');
+      this.error.set(this.i18n.instant('clients.list.errors.cannotDelete'));
       return;
     }
 
-    if (!window.confirm(`Delete ${client.displayName}?`)) {
+    if (!window.confirm(this.i18n.instant('clients.list.confirmDelete', { name: client.displayName }))) {
       return;
     }
 
     try {
       await this.clientsRepository.deleteClient(client.id);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to delete client.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('clients.list.errors.delete'));
     }
   }
 

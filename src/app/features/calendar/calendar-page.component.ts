@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '@ngx-translate/core';
+import { AppI18nService } from '../../core/services/app-i18n.service';
 import { ClientsRepository } from '../../core/services/clients.repository';
 import { JobsRepository } from '../../core/services/jobs.repository';
 import { InvoiceWorkflowService } from '../../core/services/invoice-workflow.service';
@@ -12,40 +14,47 @@ import {
   formatDateRange,
   isDateWithinRange,
   monthLabel,
-  startOfMonth
+  startOfMonth,
+  weekdayLabels as buildWeekdayLabels
 } from '../../core/utils/date.utils';
 import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
 
 @Component({
   selector: 'app-calendar-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid">
       <article class="panel stack-lg">
         <div class="page-header">
           <div>
-            <p class="eyebrow">Calendar</p>
+            <p class="eyebrow">{{ 'calendar.eyebrow' | translate }}</p>
             <h2>{{ monthTitle() }}</h2>
           </div>
 
           <div class="actions">
-            <button type="button" class="secondary-button" (click)="shiftMonth(-1)">Previous</button>
-            <button type="button" class="secondary-button" (click)="resetMonth()">Today</button>
-            <button type="button" class="secondary-button" (click)="shiftMonth(1)">Next</button>
+            <button type="button" class="secondary-button" (click)="shiftMonth(-1)">
+              {{ 'common.previous' | translate }}
+            </button>
+            <button type="button" class="secondary-button" (click)="resetMonth()">
+              {{ 'common.today' | translate }}
+            </button>
+            <button type="button" class="secondary-button" (click)="shiftMonth(1)">
+              {{ 'common.next' | translate }}
+            </button>
           </div>
         </div>
 
         <div class="calendar-legend">
-          <span class="status-dot scheduled"></span> Scheduled
-          <span class="status-dot completed"></span> Completed
-          <span class="status-dot invoiced"></span> Invoiced
-          <span class="status-dot canceled"></span> Canceled
+          <span class="status-dot scheduled"></span> {{ 'jobStatus.scheduled' | translate }}
+          <span class="status-dot completed"></span> {{ 'jobStatus.completed' | translate }}
+          <span class="status-dot invoiced"></span> {{ 'jobStatus.invoiced' | translate }}
+          <span class="status-dot canceled"></span> {{ 'jobStatus.canceled' | translate }}
         </div>
 
         <div class="calendar-grid">
-          @for (label of weekdayLabels; track label) {
+          @for (label of weekdayLabels(); track label) {
             <div class="calendar-heading">{{ label }}</div>
           }
 
@@ -88,27 +97,29 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         @if (selectedJob(); as job) {
           <div class="page-header">
             <div>
-              <p class="eyebrow">Selected job</p>
+              <p class="eyebrow">{{ 'calendar.selected.eyebrow' | translate }}</p>
               <h2>{{ job.title }}</h2>
             </div>
-            <button type="button" class="secondary-button" (click)="selectedJobId.set(null)">Close</button>
+            <button type="button" class="secondary-button" (click)="selectedJobId.set(null)">
+              {{ 'common.close' | translate }}
+            </button>
           </div>
 
           <dl class="detail-list">
             <div>
-              <dt>Client</dt>
+              <dt>{{ 'common.client' | translate }}</dt>
               <dd>{{ clientName(job.clientId) }}</dd>
             </div>
             <div>
-              <dt>Dates</dt>
+              <dt>{{ 'common.dates' | translate }}</dt>
               <dd>{{ formatDate(job) }}</dd>
             </div>
             <div>
-              <dt>Status</dt>
-              <dd class="status-text">{{ prettyStatus(job.status) }}</dd>
+              <dt>{{ 'common.status' | translate }}</dt>
+              <dd class="status-text">{{ ('jobStatus.' + job.status) | translate }}</dd>
             </div>
             <div>
-              <dt>Subtotal</dt>
+              <dt>{{ 'common.subtotal' | translate }}</dt>
               <dd>{{ subtotal(job) }}</dd>
             </div>
           </dl>
@@ -118,21 +129,25 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
           }
 
           <div class="actions wrap">
-            <a class="primary-button" [routerLink]="['/jobs', job.id]">Edit job</a>
+            <a class="primary-button" [routerLink]="['/jobs', job.id]">
+              {{ 'calendar.selected.editJob' | translate }}
+            </a>
 
             @if (job.invoiceId) {
-              <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">View invoice</a>
+              <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
+                {{ 'calendar.selected.viewInvoice' | translate }}
+              </a>
             } @else if (canCreateInvoice(job)) {
               <button type="button" class="secondary-button" (click)="createInvoice(job)">
-                Create invoice
+                {{ 'calendar.selected.createInvoice' | translate }}
               </button>
             }
           </div>
         } @else {
           <div class="empty-state">
-            <p class="eyebrow">Detail drawer</p>
-            <h2>Select a job</h2>
-            <p>Click a calendar badge to inspect the client, date span, and invoice actions.</p>
+            <p class="eyebrow">{{ 'calendar.empty.eyebrow' | translate }}</p>
+            <h2>{{ 'calendar.empty.title' | translate }}</h2>
+            <p>{{ 'calendar.empty.body' | translate }}</p>
           </div>
         }
       </aside>
@@ -165,8 +180,8 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
       .calendar-cell {
         min-height: 8.5rem;
         border-radius: 1rem;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: rgba(15, 23, 42, 0.56);
+        border: 1px solid var(--ghost-border);
+        background: var(--surface-soft);
         padding: 0.9rem;
         display: flex;
         flex-direction: column;
@@ -248,8 +263,8 @@ export class CalendarPageComponent {
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly jobsRepository = inject(JobsRepository);
   private readonly invoiceWorkflow = inject(InvoiceWorkflowService);
+  private readonly i18n = inject(AppI18nService);
 
-  readonly weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   readonly visibleMonth = signal(startOfMonth(new Date()));
   readonly selectedJobId = signal<string | null>(null);
   readonly busy = signal(false);
@@ -262,7 +277,9 @@ export class CalendarPageComponent {
     () => this.jobs().find((job) => job.id === this.selectedJobId()) ?? null
   );
 
-  readonly monthTitle = computed(() => monthLabel(this.visibleMonth()));
+  readonly weekdayLabels = computed(() => buildWeekdayLabels(this.i18n.currentLocale()));
+
+  readonly monthTitle = computed(() => monthLabel(this.visibleMonth(), this.i18n.currentLocale()));
 
   readonly calendarCells = computed(() => {
     const month = this.visibleMonth();
@@ -304,19 +321,18 @@ export class CalendarPageComponent {
   }
 
   clientName(clientId: string): string {
-    return this.clients().find((client) => client.id === clientId)?.displayName ?? 'Unknown client';
+    return (
+      this.clients().find((client) => client.id === clientId)?.displayName ??
+      this.i18n.instant('common.unknownClient')
+    );
   }
 
   formatDate(job: JobRecord): string {
-    return formatDateRange(job.startDate, job.endDate);
+    return formatDateRange(job.startDate, job.endDate, this.i18n.currentLocale());
   }
 
   subtotal(job: JobRecord): string {
     return toCurrency(sumLineItems(job.lineItems));
-  }
-
-  prettyStatus(status: JobRecord['status']): string {
-    return status.replace(/_/g, ' ');
   }
 
   canCreateInvoice(job: JobRecord): boolean {
@@ -327,7 +343,7 @@ export class CalendarPageComponent {
     const client = this.clients().find((entry) => entry.id === job.clientId);
 
     if (!client) {
-      this.error.set('This job is missing a client record.');
+      this.error.set(this.i18n.instant('calendar.errors.missingClient'));
       return;
     }
 
@@ -338,7 +354,7 @@ export class CalendarPageComponent {
       const invoiceId = await this.invoiceWorkflow.createDraftForJob(job, client);
       await this.router.navigate(['/invoices', invoiceId]);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to create invoice.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('calendar.errors.createInvoice'));
     } finally {
       this.busy.set(false);
     }

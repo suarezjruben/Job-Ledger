@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { SessionService } from '../services/session.service';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="shell">
@@ -13,8 +14,8 @@ import { SessionService } from '../services/session.service';
         <a class="brand" routerLink="/calendar">
           <span class="brand-mark">JL</span>
           <div>
-            <strong>JobLedger</strong>
-            <small>Contractor operations</small>
+            <strong>{{ 'app.name' | translate }}</strong>
+            <small>{{ 'app.tagline' | translate }}</small>
           </div>
         </a>
 
@@ -26,26 +27,28 @@ import { SessionService } from '../services/session.service';
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
             >
-              <span>{{ link.label }}</span>
-              <small>{{ link.caption }}</small>
+              <span>{{ link.labelKey | translate }}</span>
+              <small>{{ link.captionKey | translate }}</small>
             </a>
           }
         </nav>
 
         <div class="shell-footer">
-          <span>{{ session.currentUser()?.email || 'Signed in' }}</span>
-          <button type="button" class="secondary-button" (click)="signOut()">Sign out</button>
+          <span>{{ session.currentUser()?.email || ('shell.signedIn' | translate) }}</span>
+          <button type="button" class="secondary-button" (click)="signOut()">
+            {{ 'shell.signOut' | translate }}
+          </button>
         </div>
       </aside>
 
       <main class="shell-main">
         <header class="topbar">
           <div>
-            <p class="eyebrow">JobLedger</p>
-            <h1 class="page-title">Keep jobs, invoices, and history in one place.</h1>
+            <p class="eyebrow">{{ 'app.name' | translate }}</p>
+            <h1 class="page-title">{{ 'shell.pageTitle' | translate }}</h1>
           </div>
 
-          <a class="primary-button" routerLink="/jobs/new">New job</a>
+          <a class="primary-button" routerLink="/jobs/new">{{ 'shell.newJob' | translate }}</a>
         </header>
 
         <router-outlet />
@@ -56,11 +59,16 @@ import { SessionService } from '../services/session.service';
 export class AppShellComponent {
   readonly session = inject(SessionService);
   readonly links = [
-    { path: '/calendar', label: 'Calendar', caption: 'Schedule and current work', exact: true },
-    { path: '/clients', label: 'Clients', caption: 'Billing and service records' },
-    { path: '/invoices', label: 'Invoices', caption: 'Draft, issued, and paid' },
-    { path: '/history', label: 'History', caption: 'Long-term archive search' },
-    { path: '/settings', label: 'Settings', caption: 'Business profile and numbering' }
+    {
+      path: '/calendar',
+      labelKey: 'nav.calendar.label',
+      captionKey: 'nav.calendar.caption',
+      exact: true
+    },
+    { path: '/clients', labelKey: 'nav.clients.label', captionKey: 'nav.clients.caption' },
+    { path: '/invoices', labelKey: 'nav.invoices.label', captionKey: 'nav.invoices.caption' },
+    { path: '/history', labelKey: 'nav.history.label', captionKey: 'nav.history.caption' },
+    { path: '/settings', labelKey: 'nav.settings.label', captionKey: 'nav.settings.caption' }
   ];
 
   async signOut(): Promise<void> {

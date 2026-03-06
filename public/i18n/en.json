@@ -1,0 +1,374 @@
+{
+  "app": {
+    "name": "JobLedger",
+    "tagline": "Contractor operations"
+  },
+  "status": {
+    "offline": {
+      "title": "Offline mode:",
+      "body": "cached pages still open, but Firebase actions need a live connection."
+    },
+    "firebase": {
+      "title": "Firebase setup required:",
+      "body": "replace the placeholder values in"
+    }
+  },
+  "nav": {
+    "calendar": {
+      "label": "Calendar",
+      "caption": "Schedule and current work"
+    },
+    "clients": {
+      "label": "Clients",
+      "caption": "Billing and service records"
+    },
+    "invoices": {
+      "label": "Invoices",
+      "caption": "Draft, issued, and paid"
+    },
+    "history": {
+      "label": "History",
+      "caption": "Long-term archive search"
+    },
+    "settings": {
+      "label": "Settings",
+      "caption": "Business profile and preferences"
+    }
+  },
+  "shell": {
+    "signedIn": "Signed in",
+    "signOut": "Sign out",
+    "pageTitle": "Keep jobs, invoices, and history in one place.",
+    "newJob": "New job"
+  },
+  "preferences": {
+    "language": {
+      "label": "Language"
+    },
+    "theme": {
+      "label": "Theme",
+      "help": "Theme changes apply immediately without changing the existing dark design.",
+      "options": {
+        "dark": "Dark mode",
+        "light": "Light mode"
+      }
+    }
+  },
+  "common": {
+    "previous": "Previous",
+    "today": "Today",
+    "next": "Next",
+    "close": "Close",
+    "client": "Client",
+    "job": "Job",
+    "dates": "Dates",
+    "status": "Status",
+    "subtotal": "Subtotal",
+    "edit": "Edit",
+    "view": "View",
+    "open": "Open",
+    "search": "Search",
+    "notes": "Notes",
+    "description": "Description",
+    "kind": "Kind",
+    "unitLabel": "Unit label",
+    "quantity": "Quantity",
+    "rateCents": "Rate (cents)",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "downloadPdf": "Download PDF",
+    "archive": "Archive",
+    "restore": "Restore",
+    "delete": "Delete",
+    "unknownClient": "Unknown client"
+  },
+  "auth": {
+    "title": "Contractor operations without the spreadsheet sprawl.",
+    "copy": "Log work, keep the calendar honest, and generate invoice PDFs that stay tied to the job history.",
+    "signInTab": "Sign in",
+    "signUpTab": "Create account",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "confirmPasswordLabel": "Confirm password",
+    "emailPlaceholder": "owner@jobledger.app",
+    "passwordPlaceholder": "Minimum 6 characters",
+    "confirmPasswordPlaceholder": "Re-enter password",
+    "working": "Working...",
+    "signInButton": "Sign in",
+    "signUpButton": "Create account",
+    "errors": {
+      "passwordMismatch": "Passwords do not match.",
+      "accountNotFound": "Account not found. Please sign up or check your email and password.",
+      "tooManyRequests": "Too many sign-in attempts. Try again in a few minutes.",
+      "emailInUse": "An account with that email already exists. Please sign in instead.",
+      "weakPassword": "Choose a stronger password with at least 6 characters.",
+      "generic": "Unable to complete that request right now."
+    }
+  },
+  "settings": {
+    "profile": {
+      "eyebrow": "Business profile",
+      "title": "Invoice details and contact info",
+      "note": "Used in every generated invoice PDF.",
+      "fields": {
+        "businessName": "Business name",
+        "contactEmail": "Contact email",
+        "phone": "Phone",
+        "invoicePrefix": "Invoice prefix",
+        "nextInvoiceSequence": "Next invoice sequence",
+        "line1": "Mailing address line 1",
+        "line2": "Mailing address line 2",
+        "city": "City",
+        "state": "State",
+        "postalCode": "Postal code"
+      },
+      "saving": "Saving...",
+      "save": "Save settings",
+      "saved": "Settings saved.",
+      "error": "Unable to save settings."
+    },
+    "preferences": {
+      "eyebrow": "App preferences",
+      "title": "Theme and language",
+      "note": "These preferences are local to this browser.",
+      "storageHint": "Theme and language are saved on this device and also apply on the sign-in screen."
+    }
+  },
+  "jobStatus": {
+    "scheduled": "Scheduled",
+    "in_progress": "In progress",
+    "completed": "Completed",
+    "invoiced": "Invoiced",
+    "canceled": "Canceled",
+    "archived": "Archived"
+  },
+  "invoiceStatus": {
+    "draft": "Draft",
+    "issued": "Issued",
+    "paid": "Paid",
+    "void": "Void",
+    "archived": "Archived"
+  },
+  "lineItemKinds": {
+    "labor": "Labor",
+    "material": "Material",
+    "custom": "Custom"
+  },
+  "calendar": {
+    "eyebrow": "Calendar",
+    "selected": {
+      "eyebrow": "Selected job",
+      "editJob": "Edit job",
+      "viewInvoice": "View invoice",
+      "createInvoice": "Create invoice"
+    },
+    "empty": {
+      "eyebrow": "Detail drawer",
+      "title": "Select a job",
+      "body": "Click a calendar badge to inspect the client, date span, and invoice actions."
+    },
+    "errors": {
+      "missingClient": "This job is missing a client record.",
+      "createInvoice": "Unable to create invoice."
+    }
+  },
+  "clients": {
+    "list": {
+      "eyebrow": "Clients",
+      "title": "Billing and service contacts",
+      "newClient": "New client",
+      "searchLabel": "Search clients",
+      "sections": {
+        "active": "Active",
+        "archived": "Archived"
+      },
+      "noBillingInfo": "No billing info yet",
+      "archivedRecord": "Archived record",
+      "jobsCount": "{{count}} jobs",
+      "invoicesCount": "{{count}} invoices",
+      "emptyActive": {
+        "title": "No active clients",
+        "body": "Add a client before you start logging work."
+      },
+      "emptyArchived": {
+        "title": "No archived clients",
+        "body": "Archived records remain available for history and invoice snapshots."
+      },
+      "confirmDelete": "Delete {{name}}?",
+      "errors": {
+        "archive": "Unable to archive client.",
+        "restore": "Unable to restore client.",
+        "delete": "Unable to delete client.",
+        "cannotDelete": "Clients with job or invoice history must be archived instead."
+      }
+    },
+    "form": {
+      "eyebrow": "Client record",
+      "createTitle": "Create client",
+      "editTitle": "Update client",
+      "fields": {
+        "displayName": "Display name",
+        "companyName": "Company name",
+        "billingEmail": "Billing email",
+        "phone": "Phone",
+        "billingLine1": "Billing address line 1",
+        "billingLine2": "Billing address line 2",
+        "billingCity": "Billing city",
+        "billingState": "Billing state",
+        "billingPostalCode": "Billing postal code",
+        "serviceLine1": "Service address line 1",
+        "serviceLine2": "Service address line 2",
+        "serviceCity": "Service city",
+        "serviceState": "Service state",
+        "servicePostalCode": "Service postal code"
+      },
+      "saveChanges": "Save changes",
+      "createButton": "Create client",
+      "errors": {
+        "save": "Unable to save client."
+      }
+    }
+  },
+  "history": {
+    "eyebrow": "History",
+    "title": "Search long-term job and invoice records",
+    "filters": {
+      "recordType": "Record type",
+      "recordTypes": {
+        "all": "All records",
+        "job": "Jobs",
+        "invoice": "Invoices"
+      },
+      "allClients": "All clients",
+      "fromDate": "From date",
+      "toDate": "To date"
+    },
+    "kinds": {
+      "job": "Job",
+      "invoice": "Invoice"
+    },
+    "empty": {
+      "title": "No records match",
+      "body": "Try widening the date range or removing the status filter."
+    }
+  },
+  "invoices": {
+    "list": {
+      "eyebrow": "Invoices",
+      "title": "Drafts, issued work, and payments",
+      "allStatuses": "All statuses",
+      "empty": {
+        "title": "No invoices match that filter",
+        "body": "Create a draft from a completed job to start your billing history."
+      },
+      "errors": {
+        "download": "Unable to download invoice.",
+        "archive": "Unable to archive invoice.",
+        "restore": "Unable to restore invoice."
+      }
+    },
+    "detail": {
+      "eyebrow": "Invoice detail",
+      "invoiceStatus": "Invoice status",
+      "addLineItem": "Add line item",
+      "saveDraft": "Save draft",
+      "generating": "Generating...",
+      "issueInvoicePdf": "Issue invoice PDF",
+      "markPaid": "Mark paid",
+      "voidInvoice": "Void",
+      "createReplacement": "Create replacement draft",
+      "loading": {
+        "title": "Loading invoice...",
+        "body": "If this persists, the invoice ID may be invalid or the data is still syncing."
+      },
+      "snapshot": {
+        "eyebrow": "Snapshot",
+        "title": "Stored invoice context",
+        "client": "Client snapshot",
+        "job": "Job snapshot"
+      },
+      "errors": {
+        "saveDraft": "Unable to save draft.",
+        "issue": "Unable to issue invoice.",
+        "download": "Unable to download invoice.",
+        "markPaid": "Unable to mark invoice as paid.",
+        "void": "Unable to void invoice.",
+        "archive": "Unable to archive invoice.",
+        "replacement": "Unable to create replacement draft."
+      }
+    }
+  },
+  "jobs": {
+    "form": {
+      "eyebrow": "Job record",
+      "createTitle": "Create job",
+      "editTitle": "Update job",
+      "viewInvoice": "View invoice",
+      "createInvoice": "Create invoice",
+      "selectClient": "Select a client",
+      "fields": {
+        "title": "Job title",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "line1": "Service address line 1",
+        "line2": "Service address line 2",
+        "city": "City",
+        "state": "State",
+        "postalCode": "Postal code",
+        "notes": "Internal notes"
+      },
+      "lineItems": {
+        "title": "Billable line items",
+        "add": "Add line"
+      },
+      "save": "Save job",
+      "create": "Create job",
+      "saved": "Job saved.",
+      "errors": {
+        "dateOrder": "The end date must be the same day or later than the start date.",
+        "save": "Unable to save job.",
+        "missingClient": "The linked client record could not be found.",
+        "createInvoice": "Unable to create invoice.",
+        "archive": "Unable to archive job.",
+        "restore": "Unable to restore job."
+      }
+    },
+    "images": {
+      "eyebrow": "Job photos",
+      "title": "Private image storage",
+      "count": "{{count}}/10 images",
+      "saveFirst": {
+        "title": "Save the job first",
+        "body": "Photos are stored against an existing job record."
+      },
+      "uploadLabel": "Upload photo",
+      "thumbnailAlt": "Job photo thumbnail",
+      "preview": "Preview",
+      "sizeLabel": "{{size}} KB (thumb + display)",
+      "confirmDelete": "Delete this photo?",
+      "empty": {
+        "title": "No job photos yet",
+        "body": "Upload a photo to generate secure thumb and display versions."
+      },
+      "errors": {
+        "upload": "Unable to upload photo.",
+        "open": "Unable to open photo.",
+        "delete": "Unable to delete photo."
+      }
+    }
+  },
+  "pdf": {
+    "invoiceNumber": "Invoice #",
+    "jobDates": "Job dates",
+    "billTo": "Bill To",
+    "unitShort": "Unit",
+    "qtyShort": "Qty",
+    "rateShort": "Rate",
+    "amountShort": "Amount",
+    "errors": {
+      "missingProfileIssue": "Add your business profile in Settings before issuing invoices.",
+      "missingProfileDownload": "Add your business profile in Settings before generating invoices."
+    }
+  }
+}

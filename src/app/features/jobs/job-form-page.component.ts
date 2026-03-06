@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '@ngx-translate/core';
 import { map, of, switchMap } from 'rxjs';
 import {
   ClientRecord,
@@ -12,6 +13,7 @@ import {
   JobRecord,
   JobStatus
 } from '../../core/models';
+import { AppI18nService } from '../../core/services/app-i18n.service';
 import { JobImagesRepository } from '../../core/services/job-images.repository';
 import { JobsRepository } from '../../core/services/jobs.repository';
 import { ClientsRepository } from '../../core/services/clients.repository';
@@ -22,31 +24,37 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
 @Component({
   selector: 'app-job-form-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid">
       <article class="panel stack-lg">
         <div class="page-header">
           <div>
-            <p class="eyebrow">Job record</p>
-            <h2>{{ isEdit() ? 'Update job' : 'Create job' }}</h2>
+            <p class="eyebrow">{{ 'jobs.form.eyebrow' | translate }}</p>
+            <h2>{{ isEdit() ? ('jobs.form.editTitle' | translate) : ('jobs.form.createTitle' | translate) }}</h2>
           </div>
 
           @if (isEdit() && currentJob()) {
             <div class="actions wrap">
               @if (currentJob()!.invoiceId) {
-                <a class="secondary-button" [routerLink]="['/invoices', currentJob()!.invoiceId]">View invoice</a>
+                <a class="secondary-button" [routerLink]="['/invoices', currentJob()!.invoiceId]">
+                  {{ 'jobs.form.viewInvoice' | translate }}
+                </a>
               } @else if (canCreateInvoice()) {
                 <button type="button" class="secondary-button" (click)="createInvoice()">
-                  Create invoice
+                  {{ 'jobs.form.createInvoice' | translate }}
                 </button>
               }
 
               @if (currentJob()!.archivedAt) {
-                <button type="button" class="ghost-button" (click)="restoreJob()">Restore</button>
+                <button type="button" class="ghost-button" (click)="restoreJob()">
+                  {{ 'common.restore' | translate }}
+                </button>
               } @else {
-                <button type="button" class="ghost-button" (click)="archiveJob()">Archive</button>
+                <button type="button" class="ghost-button" (click)="archiveJob()">
+                  {{ 'common.archive' | translate }}
+                </button>
               }
             </div>
           }
@@ -55,9 +63,9 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
         <form class="stack-lg" [formGroup]="form" (ngSubmit)="save()">
           <div class="grid-two">
             <label class="field">
-              <span>Client</span>
+              <span>{{ 'common.client' | translate }}</span>
               <select formControlName="clientId">
-                <option value="">Select a client</option>
+                <option value="">{{ 'jobs.form.selectClient' | translate }}</option>
                 @for (client of activeClients(); track client.id) {
                   <option [value]="client.id">{{ client.displayName }}</option>
                 }
@@ -65,25 +73,25 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
             </label>
 
             <label class="field">
-              <span>Job title</span>
+              <span>{{ 'jobs.form.fields.title' | translate }}</span>
               <input type="text" formControlName="title" />
             </label>
           </div>
 
           <div class="grid-three">
             <label class="field">
-              <span>Start date</span>
+              <span>{{ 'jobs.form.fields.startDate' | translate }}</span>
               <input type="date" formControlName="startDate" />
             </label>
             <label class="field">
-              <span>End date</span>
+              <span>{{ 'jobs.form.fields.endDate' | translate }}</span>
               <input type="date" formControlName="endDate" />
             </label>
             <label class="field">
-              <span>Status</span>
+              <span>{{ 'common.status' | translate }}</span>
               <select formControlName="status">
                 @for (status of editableStatuses; track status) {
-                  <option [value]="status">{{ prettyStatus(status) }}</option>
+                  <option [value]="status">{{ ('jobStatus.' + status) | translate }}</option>
                 }
               </select>
             </label>
@@ -91,88 +99,92 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
 
           <div class="grid-two">
             <label class="field">
-              <span>Service address line 1</span>
+              <span>{{ 'jobs.form.fields.line1' | translate }}</span>
               <input type="text" formControlName="line1" />
             </label>
             <label class="field">
-              <span>Service address line 2</span>
+              <span>{{ 'jobs.form.fields.line2' | translate }}</span>
               <input type="text" formControlName="line2" />
             </label>
           </div>
 
           <div class="grid-three">
             <label class="field">
-              <span>City</span>
+              <span>{{ 'jobs.form.fields.city' | translate }}</span>
               <input type="text" formControlName="city" />
             </label>
             <label class="field">
-              <span>State</span>
+              <span>{{ 'jobs.form.fields.state' | translate }}</span>
               <input type="text" formControlName="state" />
             </label>
             <label class="field">
-              <span>Postal code</span>
+              <span>{{ 'jobs.form.fields.postalCode' | translate }}</span>
               <input type="text" formControlName="postalCode" />
             </label>
           </div>
 
           <label class="field">
-            <span>Description</span>
+            <span>{{ 'common.description' | translate }}</span>
             <textarea rows="3" formControlName="description"></textarea>
           </label>
 
           <label class="field">
-            <span>Internal notes</span>
+            <span>{{ 'jobs.form.fields.notes' | translate }}</span>
             <textarea rows="3" formControlName="notes"></textarea>
           </label>
 
           <div class="stack-md">
             <div class="section-heading">
-              <h3>Billable line items</h3>
-              <button type="button" class="secondary-button" (click)="addLineItem()">Add line</button>
+              <h3>{{ 'jobs.form.lineItems.title' | translate }}</h3>
+              <button type="button" class="secondary-button" (click)="addLineItem()">
+                {{ 'jobs.form.lineItems.add' | translate }}
+              </button>
             </div>
 
             <div class="stack-md" formArrayName="lineItems">
               @for (lineItem of lineItems.controls; track lineItem; let i = $index) {
                 <div class="line-item-grid" [formGroupName]="i">
                   <label class="field">
-                    <span>Description</span>
+                    <span>{{ 'common.description' | translate }}</span>
                     <input type="text" formControlName="description" />
                   </label>
 
                   <label class="field">
-                    <span>Kind</span>
+                    <span>{{ 'common.kind' | translate }}</span>
                     <select formControlName="kind">
-                      <option value="labor">Labor</option>
-                      <option value="material">Material</option>
-                      <option value="custom">Custom</option>
+                      <option value="labor">{{ 'lineItemKinds.labor' | translate }}</option>
+                      <option value="material">{{ 'lineItemKinds.material' | translate }}</option>
+                      <option value="custom">{{ 'lineItemKinds.custom' | translate }}</option>
                     </select>
                   </label>
 
                   <label class="field">
-                    <span>Unit label</span>
+                    <span>{{ 'common.unitLabel' | translate }}</span>
                     <input type="text" formControlName="unitLabel" />
                   </label>
 
                   <label class="field">
-                    <span>Quantity</span>
+                    <span>{{ 'common.quantity' | translate }}</span>
                     <input type="number" min="0" step="0.25" formControlName="quantity" />
                   </label>
 
                   <label class="field">
-                    <span>Rate (cents)</span>
+                    <span>{{ 'common.rateCents' | translate }}</span>
                     <input type="number" min="0" step="1" formControlName="unitPriceCents" />
                   </label>
 
                   <div class="line-item-total">
                     <strong>{{ lineTotal(i) }}</strong>
-                    <button type="button" class="ghost-button" (click)="removeLineItem(i)">Remove</button>
+                    <button type="button" class="ghost-button" (click)="removeLineItem(i)">
+                      {{ 'common.remove' | translate }}
+                    </button>
                   </div>
                 </div>
               }
             </div>
 
             <div class="summary-row">
-              <span>Subtotal</span>
+              <span>{{ 'common.subtotal' | translate }}</span>
               <strong>{{ subtotal() }}</strong>
             </div>
           </div>
@@ -187,9 +199,15 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
 
           <div class="actions wrap">
             <button type="submit" class="primary-button" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : isEdit() ? 'Save job' : 'Create job' }}
+              {{
+                saving()
+                  ? ('common.saving' | translate)
+                  : isEdit()
+                    ? ('jobs.form.save' | translate)
+                    : ('jobs.form.create' | translate)
+              }}
             </button>
-            <a class="ghost-button" routerLink="/calendar">Cancel</a>
+            <a class="ghost-button" routerLink="/calendar">{{ 'common.cancel' | translate }}</a>
           </div>
         </form>
       </article>
@@ -197,20 +215,20 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
       <aside class="panel stack-lg">
         <div class="page-header">
           <div>
-            <p class="eyebrow">Job photos</p>
-            <h2>Private image storage</h2>
+            <p class="eyebrow">{{ 'jobs.images.eyebrow' | translate }}</p>
+            <h2>{{ 'jobs.images.title' | translate }}</h2>
           </div>
-          <span class="page-note">{{ images().length }}/10 images</span>
+          <span class="page-note">{{ 'jobs.images.count' | translate:{ count: images().length } }}</span>
         </div>
 
         @if (!isEdit()) {
           <div class="empty-state compact">
-            <h3>Save the job first</h3>
-            <p>Photos are stored against an existing job record.</p>
+            <h3>{{ 'jobs.images.saveFirst.title' | translate }}</h3>
+            <p>{{ 'jobs.images.saveFirst.body' | translate }}</p>
           </div>
         } @else {
           <label class="field">
-            <span>Upload photo</span>
+            <span>{{ 'jobs.images.uploadLabel' | translate }}</span>
             <input type="file" accept="image/*" (change)="uploadImage($event)" />
           </label>
 
@@ -218,27 +236,32 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
             @for (image of images(); track image.id) {
               <article class="image-row">
                 @if (thumbUrls()[image.id]; as thumbUrl) {
-                  <img class="image-thumb" [src]="thumbUrl" alt="Job photo thumbnail" loading="lazy" />
+                  <img
+                    class="image-thumb"
+                    [src]="thumbUrl"
+                    [alt]="'jobs.images.thumbnailAlt' | translate"
+                    loading="lazy"
+                  />
                 } @else {
-                  <div class="image-thumb placeholder">Preview</div>
+                  <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
                 }
                 <div>
                   <strong>{{ image.width }} x {{ image.height }}</strong>
-                  <p>{{ image.totalBytes / 1024 | number:'1.0-0' }} KB (thumb + display)</p>
+                  <p>{{ imageSizeLabel(image) }}</p>
                 </div>
                 <div class="actions wrap">
                   <button type="button" class="secondary-button" (click)="openImage(image)">
-                    Open
+                    {{ 'common.open' | translate }}
                   </button>
                   <button type="button" class="ghost-button" (click)="deleteImage(image)">
-                    Delete
+                    {{ 'common.delete' | translate }}
                   </button>
                 </div>
               </article>
             } @empty {
               <div class="empty-state compact">
-                <h3>No job photos yet</h3>
-                <p>Upload a photo to generate secure thumb and display versions.</p>
+                <h3>{{ 'jobs.images.empty.title' | translate }}</h3>
+                <p>{{ 'jobs.images.empty.body' | translate }}</p>
               </div>
             }
           </div>
@@ -255,7 +278,7 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
         align-items: end;
         padding: 1rem;
         border-radius: 1rem;
-        background: rgba(15, 23, 42, 0.48);
+        background: var(--surface-muted);
       }
 
       .line-item-total {
@@ -279,7 +302,7 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
         align-items: center;
         padding: 1rem;
         border-radius: 1rem;
-        background: rgba(15, 23, 42, 0.48);
+        background: var(--surface-muted);
       }
 
       .image-row p {
@@ -299,7 +322,7 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
         place-items: center;
         font-size: 0.72rem;
         color: var(--text-muted);
-        border: 1px solid rgba(148, 163, 184, 0.26);
+        border: 1px solid var(--secondary-border);
       }
 
       @media (max-width: 1100px) {
@@ -318,6 +341,7 @@ export class JobFormPageComponent {
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly imagesRepository = inject(JobImagesRepository);
   private readonly invoiceWorkflow = inject(InvoiceWorkflowService);
+  private readonly i18n = inject(AppI18nService);
   private readonly thumbLoadingIds = new Set<string>();
 
   readonly editableStatuses = JOB_STATUSES.filter((status) => status !== 'archived');
@@ -485,8 +509,12 @@ export class JobFormPageComponent {
     return toCurrency(this.serializeLineItems().reduce((sum, lineItem) => sum + lineItem.totalCents, 0));
   }
 
-  prettyStatus(status: string): string {
-    return status.replace(/_/g, ' ');
+  imageSizeLabel(image: JobImageRecord): string {
+    const size = new Intl.NumberFormat(this.i18n.currentLocale(), {
+      maximumFractionDigits: 0
+    }).format(image.totalBytes / 1024);
+
+    return this.i18n.instant('jobs.images.sizeLabel', { size });
   }
 
   canCreateInvoice(): boolean {
@@ -514,7 +542,7 @@ export class JobFormPageComponent {
     const postalCode = value.postalCode ?? '';
 
     if (startDate > endDate) {
-      this.error.set('The end date must be the same day or later than the start date.');
+      this.error.set(this.i18n.instant('jobs.form.errors.dateOrder'));
       return;
     }
 
@@ -543,14 +571,14 @@ export class JobFormPageComponent {
 
       if (this.isEdit() && this.jobId()) {
         await this.jobsRepository.updateJob(this.jobId()!, payload);
-        this.message.set('Job saved.');
+        this.message.set(this.i18n.instant('jobs.form.saved'));
       } else {
         const jobId = await this.jobsRepository.createJob(payload);
         await this.router.navigate(['/jobs', jobId]);
         return;
       }
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to save job.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.save'));
     } finally {
       this.saving.set(false);
     }
@@ -566,7 +594,7 @@ export class JobFormPageComponent {
     const client = this.clients().find((entry) => entry.id === job.clientId);
 
     if (!client) {
-      this.error.set('The linked client record could not be found.');
+      this.error.set(this.i18n.instant('jobs.form.errors.missingClient'));
       return;
     }
 
@@ -574,7 +602,7 @@ export class JobFormPageComponent {
       const invoiceId = await this.invoiceWorkflow.createDraftForJob(job, client);
       await this.router.navigate(['/invoices', invoiceId]);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to create invoice.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.createInvoice'));
     }
   }
 
@@ -593,7 +621,7 @@ export class JobFormPageComponent {
       await this.imagesRepository.uploadImage(jobId, file);
       input.value = '';
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to upload photo.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.images.errors.upload'));
     }
   }
 
@@ -610,7 +638,7 @@ export class JobFormPageComponent {
       const url = await this.imagesRepository.getImageDownloadUrl(jobId, image.id, 'display');
       window.open(url, '_blank', 'noopener');
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to open photo.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.images.errors.open'));
     }
   }
 
@@ -621,7 +649,7 @@ export class JobFormPageComponent {
       return;
     }
 
-    if (!window.confirm('Delete this photo?')) {
+    if (!window.confirm(this.i18n.instant('jobs.images.confirmDelete'))) {
       return;
     }
 
@@ -636,7 +664,7 @@ export class JobFormPageComponent {
       });
       this.thumbLoadingIds.delete(image.id);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to delete photo.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.images.errors.delete'));
     }
   }
 
@@ -649,7 +677,7 @@ export class JobFormPageComponent {
       await this.jobsRepository.archiveJob(this.jobId()!);
       await this.router.navigate(['/calendar']);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to archive job.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.archive'));
     }
   }
 
@@ -661,7 +689,7 @@ export class JobFormPageComponent {
     try {
       await this.jobsRepository.restoreJob(this.jobId()!);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to restore job.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.restore'));
     }
   }
 
