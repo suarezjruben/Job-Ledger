@@ -34,6 +34,10 @@ export class SessionService {
     await this.router.navigateByUrl('/login');
   }
 
+  hasActiveSession(): boolean {
+    return Boolean(this.auth.currentUser);
+  }
+
   requireUid(): string {
     const uid = this.auth.currentUser?.uid;
 

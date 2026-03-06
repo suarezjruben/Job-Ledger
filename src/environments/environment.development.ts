@@ -4,11 +4,12 @@ export const environment: AppEnvironment = {
   production: false,
   imageApiBaseUrl: 'https://us-central1-job-ledger-2026.cloudfunctions.net/api',
   firebase: {
-    apiKey: "replace-with-firebase-web-api-key",
+    apiKey: "AIzaSyDx5y8Sb-1MxxGlxmsrkpLr-YHcjvvP-EI",
     authDomain: "job-ledger-2026.firebaseapp.com",
     projectId: "job-ledger-2026",
     storageBucket: "job-ledger-2026.firebasestorage.app",
     messagingSenderId: "117919508121",
-    appId: "replace-with-firebase-web-app-id"
+    appId: "1:117919508121:web:a65f2d5d840d8c37697a08",
+    measurementId: "G-Q509J3YK15"
   }
 };

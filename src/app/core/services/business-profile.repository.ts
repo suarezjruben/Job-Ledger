@@ -32,11 +32,6 @@ export class BusinessProfileRepository {
 
   async ensureDefaultProfileForUid(uid: string, email: string): Promise<void> {
     const reference = this.profileRef(uid);
-    const snapshot = await getDoc(reference);
-
-    if (snapshot.exists()) {
-      return;
-    }
 
     await setDoc(
       reference,
@@ -46,7 +41,8 @@ export class BusinessProfileRepository {
         contactEmail: email,
         invoicePrefix: 'INV',
         nextInvoiceSequence: 1
-      }) as WithFieldValue<BusinessProfile>
+      }) as WithFieldValue<BusinessProfile>,
+      { merge: true }
     );
   }
 

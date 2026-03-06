@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FirebaseError } from 'firebase/app';
 import { Router } from '@angular/router';
 import { BusinessProfileRepository } from '../../core/services/business-profile.repository';
 import { SessionService } from '../../core/services/session.service';
@@ -25,7 +26,7 @@ import { SessionService } from '../../core/services/session.service';
             type="button"
             class="segmented-button"
             [class.active]="mode() === 'sign-in'"
-            (click)="mode.set('sign-in')"
+            (click)="setMode('sign-in')"
           >
             Sign in
           </button>
@@ -33,7 +34,7 @@ import { SessionService } from '../../core/services/session.service';
             type="button"
             class="segmented-button"
             [class.active]="mode() === 'sign-up'"
-            (click)="mode.set('sign-up')"
+            (click)="setMode('sign-up')"
           >
             Create account
           </button>
@@ -142,6 +143,11 @@ export class LoginComponent {
     confirmPassword: ['']
   });
 
+  setMode(mode: 'sign-in' | 'sign-up'): void {
+    this.mode.set(mode);
+    this.error.set('');
+  }
+
   async submit(): Promise<void> {
     this.error.set('');
 
@@ -167,13 +173,50 @@ export class LoginComponent {
         await this.router.navigateByUrl('/calendar');
       } else {
         const user = await this.session.signUp(email, password);
-        await this.businessProfiles.ensureDefaultProfileForUid(user.uid, user.email ?? email);
+
+        // Account creation should not be blocked by the first Firestore profile bootstrap.
+        void this.businessProfiles.ensureDefaultProfileForUid(user.uid, user.email ?? email).catch((error) => {
+          console.error('Unable to bootstrap the default business profile after signup.', error);
+        });
+
         await this.router.navigateByUrl('/settings');
       }
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to complete that request.');
+      this.error.set(this.toAuthErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private toAuthErrorMessage(error: unknown): string {
+    if (!(error instanceof FirebaseError)) {
+      return error instanceof Error ? error.message : 'Unable to complete that request.';
+    }
+
+    if (this.mode() === 'sign-in') {
+      if (
+        error.code === 'auth/invalid-credential' ||
+        error.code === 'auth/invalid-login-credentials' ||
+        error.code === 'auth/user-not-found'
+      ) {
+        return 'Account not found. Please sign up or check your email and password.';
+      }
+
+      if (error.code === 'auth/too-many-requests') {
+        return 'Too many sign-in attempts. Try again in a few minutes.';
+      }
+    }
+
+    if (this.mode() === 'sign-up') {
+      if (error.code === 'auth/email-already-in-use') {
+        return 'An account with that email already exists. Please sign in instead.';
+      }
+
+      if (error.code === 'auth/weak-password') {
+        return 'Choose a stronger password with at least 6 characters.';
+      }
+    }
+
+    return 'Unable to complete that request right now.';
   }
 }

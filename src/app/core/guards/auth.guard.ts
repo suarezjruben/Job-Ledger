@@ -7,6 +7,10 @@ function authCheck() {
   const session = inject(SessionService);
   const router = inject(Router);
 
+  if (session.hasActiveSession()) {
+    return true;
+  }
+
   return session.user$.pipe(
     take(1),
     map((currentUser) => (currentUser ? true : router.createUrlTree(['/login'])))
