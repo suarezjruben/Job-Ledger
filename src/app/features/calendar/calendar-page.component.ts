@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  inject,
+  signal,
+  viewChild
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -53,9 +63,11 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
           <span class="status-dot canceled"></span> {{ 'jobStatus.canceled' | translate }}
         </div>
 
-        <div class="calendar-grid">
-          @for (label of weekdayLabels(); track label) {
-            <div class="calendar-heading">{{ label }}</div>
+        <div class="calendar-grid" #calendarGrid>
+          @if (showWeekdayHeadings()) {
+            @for (label of weekdayLabels(); track label) {
+              <div class="calendar-heading">{{ label }}</div>
+            }
           }
 
           @for (cell of calendarCells(); track cell.isoDate) {
@@ -259,16 +271,19 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
   ]
 })
 export class CalendarPageComponent {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly jobsRepository = inject(JobsRepository);
   private readonly invoiceWorkflow = inject(InvoiceWorkflowService);
   private readonly i18n = inject(AppI18nService);
+  private readonly calendarGridRef = viewChild<ElementRef<HTMLElement>>('calendarGrid');
 
   readonly visibleMonth = signal(startOfMonth(new Date()));
   readonly selectedJobId = signal<string | null>(null);
   readonly busy = signal(false);
   readonly error = signal('');
+  readonly calendarColumnCount = signal(7);
 
   readonly jobs = toSignal(this.jobsRepository.observeJobs(), { initialValue: [] as JobRecord[] });
   readonly clients = toSignal(this.clientsRepository.observeClients(), { initialValue: [] as ClientRecord[] });
@@ -278,6 +293,7 @@ export class CalendarPageComponent {
   );
 
   readonly weekdayLabels = computed(() => buildWeekdayLabels(this.i18n.currentLocale()));
+  readonly showWeekdayHeadings = computed(() => this.calendarColumnCount() >= 7);
 
   readonly monthTitle = computed(() => monthLabel(this.visibleMonth(), this.i18n.currentLocale()));
 
@@ -300,6 +316,27 @@ export class CalendarPageComponent {
       };
     });
   });
+
+  constructor() {
+    afterNextRender(() => {
+      const grid = this.calendarGridRef()?.nativeElement;
+
+      if (!grid || typeof ResizeObserver === 'undefined') {
+        return;
+      }
+
+      const updateColumnCount = () => {
+        this.calendarColumnCount.set(this.readGridColumnCount(grid));
+      };
+
+      updateColumnCount();
+
+      const observer = new ResizeObserver(() => updateColumnCount());
+      observer.observe(grid);
+
+      this.destroyRef.onDestroy(() => observer.disconnect());
+    });
+  }
 
   shiftMonth(delta: number): void {
     this.visibleMonth.set(addMonths(this.visibleMonth(), delta));
@@ -358,5 +395,19 @@ export class CalendarPageComponent {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  private readGridColumnCount(grid: HTMLElement): number {
+    if (typeof window === 'undefined') {
+      return 7;
+    }
+
+    const columns = window.getComputedStyle(grid).gridTemplateColumns;
+
+    if (!columns || columns === 'none') {
+      return 1;
+    }
+
+    return columns.trim().split(/\s+/).length;
   }
 }

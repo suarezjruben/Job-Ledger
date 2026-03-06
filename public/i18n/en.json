@@ -39,7 +39,13 @@
     "signedIn": "Signed in",
     "signOut": "Sign out",
     "pageTitle": "Keep jobs, invoices, and history in one place.",
-    "newJob": "New job"
+    "newJob": "New job",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "collapseNavigation": "Collapse navigation",
+    "expandNavigation": "Expand navigation",
+    "closeOverlays": "Close open menus",
+    "moreActions": "More actions"
   },
   "preferences": {
     "language": {
