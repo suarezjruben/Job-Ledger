@@ -51,4 +51,3 @@ jobs:
 
       - name: Deploy hosting and functions
         run: npx firebase-tools@14.26.0 deploy --project job-ledger-2026 --only hosting,functions --force
-
