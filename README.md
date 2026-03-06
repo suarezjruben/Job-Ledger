@@ -89,6 +89,24 @@ All endpoints require Firebase ID token in `Authorization: Bearer <token>`.
 - `POST /api/images/sign-download`
 - `POST /api/images/delete`
 
+## Firestore Index Notes
+
+`firestore.indexes.json` must stay valid JSON, so it cannot contain inline comments.
+
+- Use `indexes` for composite query shapes such as `status + startDate`.
+- Use `fieldOverrides` for single-field index configuration.
+- The image upload API uses a collection-group query on `images.ownerUid`, so that single-field collection-group index is defined under `fieldOverrides`.
+
+Deploy Firestore index changes from the repo root with:
+
+```bash
+npx firebase-tools deploy --only firestore:indexes --project job-ledger-2026
+```
+
+Notes:
+- This command deploys both composite indexes and `fieldOverrides` from `firestore.indexes.json`.
+- New indexes can take a short time to finish initializing after deploy, so queries may keep returning `FAILED_PRECONDITION` until the index is ready.
+
 ## Development Scripts
 
 ```bash

@@ -31,21 +31,16 @@
         { "fieldPath": "clientId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "jobs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "archivedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "invoices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "archivedAt", "order": "DESCENDING" }
-      ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "images",
+      "fieldPath": "ownerUid",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }
