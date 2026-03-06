@@ -17,117 +17,144 @@ import { SessionService } from '../services/session.service';
       [class.landscape-compact-shell]="isLandscapeCompactShell()"
       [class.rail-collapsed]="isSidebarCollapsed()"
     >
-      @if (showBackdrop()) {
-        <button
-          type="button"
-          class="shell-backdrop"
-          (click)="closeTransientUi()"
-          [attr.aria-label]="'shell.closeOverlays' | translate"
-        ></button>
-      }
+      @if (!isPortraitShell()) {
+        <aside
+          class="shell-sidebar"
+          [class.collapsed]="isSidebarCollapsed()"
+        >
+          @if (canCollapseSidebar()) {
+            <button
+              type="button"
+              class="shell-edge-toggle"
+              [class.desktop-handle]="!isCompactShell()"
+              (click)="toggleNavigation()"
+              [attr.aria-label]="
+                (isSidebarCollapsed() ? 'shell.expandNavigation' : 'shell.collapseNavigation') | translate
+              "
+              [title]="
+                (isSidebarCollapsed() ? 'shell.expandNavigation' : 'shell.collapseNavigation') | translate
+              "
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path [attr.d]="isSidebarCollapsed() ? expandIcon : collapseIcon"></path>
+              </svg>
+            </button>
+          }
 
-      <aside
-        class="shell-sidebar"
-        [class.nav-open]="navOpen()"
-        [class.collapsed]="isSidebarCollapsed()"
-      >
-        @if (canCollapseSidebar()) {
-          <button
-            type="button"
-            class="shell-edge-toggle"
-            [class.desktop-handle]="!isCompactShell()"
-            (click)="toggleNavigation()"
-            [attr.aria-label]="
-              (isSidebarCollapsed() ? 'shell.expandNavigation' : 'shell.collapseNavigation') | translate
-            "
-            [title]="
-              (isSidebarCollapsed() ? 'shell.expandNavigation' : 'shell.collapseNavigation') | translate
-            "
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path [attr.d]="isSidebarCollapsed() ? expandIcon : collapseIcon"></path>
-            </svg>
-          </button>
-        }
-
-        <div class="shell-sidebar-scroll">
-          <div class="sidebar-header">
-            <a class="brand" routerLink="/calendar" (click)="handleLinkActivated()">
-              <span class="brand-mark">JL</span>
-              <div class="brand-copy">
-                <strong>{{ 'app.name' | translate }}</strong>
-                <small>{{ 'app.tagline' | translate }}</small>
-              </div>
-            </a>
-          </div>
-
-          <nav class="shell-nav">
-            @for (link of links; track link.path) {
-              <a
-                class="shell-link"
-                [routerLink]="link.path"
-                routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
-                (click)="handleLinkActivated()"
-                [title]="link.labelKey | translate"
-              >
-                <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path [attr.d]="link.iconPath"></path>
-                </svg>
-
-                <div class="nav-copy">
-                  <span>{{ link.labelKey | translate }}</span>
-                  <small>{{ link.captionKey | translate }}</small>
+          <div class="shell-sidebar-scroll">
+            <div class="sidebar-header">
+              <a class="brand" routerLink="/calendar" (click)="handleLinkActivated()">
+                <span class="brand-mark">JL</span>
+                <div class="brand-copy">
+                  <strong>{{ 'app.name' | translate }}</strong>
+                  <small>{{ 'app.tagline' | translate }}</small>
                 </div>
               </a>
-            }
-          </nav>
+            </div>
 
-          <div class="shell-footer">
-            @if (isSidebarCollapsed()) {
-              <button
-                type="button"
-                class="icon-button rail-action"
-                (click)="signOut()"
-                [attr.aria-label]="'shell.signOut' | translate"
-                [title]="'shell.signOut' | translate"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path [attr.d]="signOutIcon"></path>
-                </svg>
-              </button>
-            } @else {
-              <button type="button" class="secondary-button shell-signout-button" (click)="signOut()">
-                <span class="shell-signout-label">{{ 'shell.signOut' | translate }}</span>
-                <span class="shell-footer-text">{{ session.currentUser()?.email || ('shell.signedIn' | translate) }}</span>
-              </button>
-            }
+            <nav class="shell-nav">
+              @for (link of links; track link.path) {
+                <a
+                  class="shell-link"
+                  [routerLink]="link.path"
+                  routerLinkActive="active"
+                  [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
+                  (click)="handleLinkActivated()"
+                  [title]="link.labelKey | translate"
+                >
+                  <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="link.iconPath"></path>
+                  </svg>
+
+                  <div class="nav-copy">
+                    <span>{{ link.labelKey | translate }}</span>
+                    <small>{{ link.captionKey | translate }}</small>
+                  </div>
+                </a>
+              }
+            </nav>
+
+            <div class="shell-footer">
+              @if (isSidebarCollapsed()) {
+                <button
+                  type="button"
+                  class="icon-button rail-action"
+                  (click)="signOut()"
+                  [attr.aria-label]="'shell.signOut' | translate"
+                  [title]="'shell.signOut' | translate"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="signOutIcon"></path>
+                  </svg>
+                </button>
+              } @else {
+                <button type="button" class="secondary-button shell-signout-button" (click)="signOut()">
+                  <span class="shell-signout-label">{{ 'shell.signOut' | translate }}</span>
+                  <span class="shell-footer-text">{{ session.currentUser()?.email || ('shell.signedIn' | translate) }}</span>
+                </button>
+              }
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
+      }
 
       <main class="shell-main">
         @if (isPortraitShell()) {
-          <header class="mobile-topbar">
-            <a class="mobile-brand" routerLink="/calendar" (click)="closeTransientUi()">
-              <span class="brand-mark">JL</span>
-              <strong>{{ 'app.name' | translate }}</strong>
-            </a>
+          <header class="mobile-topbar" [class.expanded]="navOpen()">
+            <div class="mobile-topbar-bar">
+              <a class="mobile-brand" routerLink="/calendar" (click)="closeTransientUi()">
+                <span class="brand-mark">JL</span>
+                <strong>{{ 'app.name' | translate }}</strong>
+              </a>
 
-            <div class="mobile-toolbar-actions">
-              <button
-                type="button"
-                class="icon-button accent"
-                (click)="toggleNavigation()"
-                [attr.aria-expanded]="navOpen()"
-                [attr.aria-label]="(navOpen() ? 'shell.closeNavigation' : 'shell.openNavigation') | translate"
-                [title]="(navOpen() ? 'shell.closeNavigation' : 'shell.openNavigation') | translate"
+              <div class="mobile-toolbar-actions">
+                <button
+                  type="button"
+                  class="icon-button accent"
+                  (click)="toggleNavigation()"
+                  [attr.aria-expanded]="navOpen()"
+                  [attr.aria-label]="(navOpen() ? 'shell.closeNavigation' : 'shell.openNavigation') | translate"
+                  [title]="(navOpen() ? 'shell.closeNavigation' : 'shell.openNavigation') | translate"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path [attr.d]="navOpen() ? closeIcon : menuIcon"></path>
                   </svg>
                 </button>
+              </div>
             </div>
+
+            @if (navOpen()) {
+              <div class="mobile-topbar-panel">
+                <nav class="mobile-topbar-nav">
+                  @for (link of links; track link.path) {
+                    <a
+                      class="shell-link mobile-shell-link"
+                      [routerLink]="link.path"
+                      routerLinkActive="active"
+                      [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
+                      (click)="handleLinkActivated()"
+                      [title]="link.labelKey | translate"
+                    >
+                      <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path [attr.d]="link.iconPath"></path>
+                      </svg>
+
+                      <div class="nav-copy">
+                        <span>{{ link.labelKey | translate }}</span>
+                        <small>{{ link.captionKey | translate }}</small>
+                      </div>
+                    </a>
+                  }
+                </nav>
+
+                <div class="mobile-topbar-footer">
+                  <button type="button" class="secondary-button shell-signout-button" (click)="signOut()">
+                    <span class="shell-signout-label">{{ 'shell.signOut' | translate }}</span>
+                    <span class="shell-footer-text">{{ session.currentUser()?.email || ('shell.signedIn' | translate) }}</span>
+                  </button>
+                </div>
+              </div>
+            }
           </header>
         } @else {
           <header class="topbar">
@@ -139,17 +166,6 @@ import { SessionService } from '../services/session.service';
             </div>
           </header>
         }
-
-        <a
-          class="floating-new-job"
-          routerLink="/jobs/new"
-          [attr.aria-label]="'shell.newJob' | translate"
-          [title]="'shell.newJob' | translate"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path [attr.d]="newJobIcon"></path>
-          </svg>
-        </a>
 
         <router-outlet />
       </main>
@@ -179,19 +195,11 @@ import { SessionService } from '../services/session.service';
       }
 
       .shell.rail-collapsed {
-        --sidebar-width: 5.75rem;
+        --sidebar-width: 54px;
       }
 
       .shell.portrait-shell {
         grid-template-columns: 1fr;
-      }
-
-      .shell-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 45;
-        border: 0;
-        background: rgba(2, 6, 23, 0.45);
       }
 
       .shell-sidebar {
@@ -240,11 +248,17 @@ import { SessionService } from '../services/session.service';
         display: block;
         font-size: clamp(0.92rem, 1.55vh, 1rem);
         line-height: 1.08;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .brand small {
         margin-top: clamp(0.05rem, 0.25vh, 0.2rem);
         font-size: clamp(0.7rem, 1.05vh, 0.8rem);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .brand-mark {
@@ -283,11 +297,17 @@ import { SessionService } from '../services/session.service';
       .nav-copy span {
         line-height: 1.12;
         font-size: clamp(1rem, 0.85vw + 0.5rem, 1.25rem);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .nav-copy small {
         margin-top: clamp(0.05rem, 0.2vh, 0.2rem);
         font-size: clamp(0.84rem, 0.65vw + 0.35rem, 1rem);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .nav-icon,
@@ -366,6 +386,7 @@ import { SessionService } from '../services/session.service';
         text-align: center;
         line-height: 1.12;
         font-size: clamp(0.74rem, 1.1vh, 0.9rem);
+        white-space: nowrap;
       }
 
       .shell-signout-button {
@@ -389,16 +410,26 @@ import { SessionService } from '../services/session.service';
         position: sticky;
         top: 0;
         z-index: 40;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
+        display: grid;
+        gap: 0.85rem;
         margin-bottom: 1rem;
         padding: 0.85rem 1rem;
         border-radius: 1.25rem;
         border: 1px solid var(--panel-border);
         background: var(--panel);
+        box-shadow: var(--shadow);
         backdrop-filter: blur(24px);
+      }
+
+      .mobile-topbar.expanded {
+        padding-bottom: 1rem;
+      }
+
+      .mobile-topbar-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
       }
 
       .mobile-brand {
@@ -416,30 +447,24 @@ import { SessionService } from '../services/session.service';
         margin-left: auto;
       }
 
-      .floating-new-job {
-        position: fixed;
-        right: 1rem;
-        bottom: 1rem;
-        z-index: 42;
-        width: 3.6rem;
-        height: 3.6rem;
-        border-radius: 999px;
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-        color: var(--accent-ink);
-        box-shadow: var(--shadow);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+      .mobile-topbar-panel {
+        display: grid;
+        gap: 0.85rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--panel-border);
       }
 
-      .floating-new-job svg {
-        width: clamp(1.25rem, 2.8vh, 1.875rem);
-        height: clamp(1.25rem, 2.8vh, 1.875rem);
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+      .mobile-topbar-nav {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .mobile-shell-link {
+        min-block-size: auto;
+      }
+
+      .mobile-topbar-footer {
+        display: grid;
       }
 
       .shell:not(.portrait-shell) .shell-sidebar {
@@ -468,7 +493,7 @@ import { SessionService } from '../services/session.service';
       }
 
       .shell:not(.portrait-shell) .shell-sidebar.collapsed {
-        padding-inline: 0.8rem;
+        padding-inline: 0;
       }
 
       .shell:not(.portrait-shell) .shell-sidebar.collapsed .brand {
@@ -490,7 +515,7 @@ import { SessionService } from '../services/session.service';
       }
 
       .shell:not(.portrait-shell) .shell-sidebar.collapsed .shell-link {
-        width: 100%;
+        width: min(100%, 54px);
         grid-template-columns: 1fr;
         justify-items: center;
         padding-inline: 0.5rem;
@@ -528,32 +553,6 @@ import { SessionService } from '../services/session.service';
 
       .shell.portrait-shell .shell-main {
         padding: 1rem;
-      }
-
-      .shell.portrait-shell .shell-sidebar {
-        position: fixed;
-        top: 5.45rem;
-        left: 1rem;
-        right: 1rem;
-        width: auto;
-        max-height: calc(100vh - 6.45rem);
-        height: auto;
-        border-radius: 1.5rem;
-        box-shadow: var(--shadow);
-        transform: translateY(calc(-100% - 6rem));
-        opacity: 0;
-        transition:
-          transform 180ms ease,
-          opacity 180ms ease;
-      }
-
-      .shell.portrait-shell .shell-sidebar.nav-open {
-        transform: translateY(0);
-        opacity: 1;
-      }
-
-      .shell.portrait-shell .shell-footer {
-        padding-bottom: 1rem;
       }
 
       .shell.portrait-shell {
@@ -615,7 +614,6 @@ export class AppShellComponent {
   readonly closeIcon = 'M6 6l12 12M18 6 6 18';
   readonly collapseIcon = 'M15 5 9 12l6 7';
   readonly expandIcon = 'M9 5l6 7-6 7';
-  readonly newJobIcon = 'M12 5v14M5 12h14';
   readonly settingsIcon =
     'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8 3.5-.85-.3a7.76 7.76 0 0 0-.53-1.28l.4-.82a.8.8 0 0 0-.15-.93l-1.54-1.54a.8.8 0 0 0-.93-.15l-.82.4c-.41-.22-.84-.4-1.28-.53l-.3-.85a.8.8 0 0 0-.76-.55h-2.18a.8.8 0 0 0-.76.55l-.3.85c-.44.13-.87.31-1.28.53l-.82-.4a.8.8 0 0 0-.93.15L5.13 8.67a.8.8 0 0 0-.15.93l.4.82c-.22.41-.4.84-.53 1.28l-.85.3a.8.8 0 0 0-.55.76v2.18c0 .34.22.64.55.76l.85.3c.13.44.31.87.53 1.28l-.4.82a.8.8 0 0 0 .15.93l1.54 1.54c.25.25.63.31.93.15l.82-.4c.41.22.84.4 1.28.53l.3.85c.12.33.42.55.76.55h2.18c.34 0 .64-.22.76-.55l.3-.85c.44-.13.87-.31 1.28-.53l.82.4c.3.16.68.1.93-.15l1.54-1.54a.8.8 0 0 0 .15-.93l-.4-.82c.22-.41.4-.84.53-1.28l.85-.3a.8.8 0 0 0 .55-.76v-2.18a.8.8 0 0 0-.55-.76Z';
   readonly signOutIcon = 'M10 17 5 12l5-5M5 12h9M13.5 5.25H17a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-3.5';
@@ -629,7 +627,6 @@ export class AppShellComponent {
   );
   readonly canCollapseSidebar = computed(() => !this.isPortraitShell());
   readonly isSidebarCollapsed = computed(() => this.canCollapseSidebar() && this.navCollapsed());
-  readonly showBackdrop = computed(() => this.isPortraitShell() && this.navOpen());
 
   constructor() {
     if (typeof window !== 'undefined') {

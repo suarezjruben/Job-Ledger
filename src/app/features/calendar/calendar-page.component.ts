@@ -71,17 +71,16 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
           }
 
           @for (cell of calendarCells(); track cell.isoDate) {
-            <button
-              type="button"
+            <article
               class="calendar-cell"
               [class.outside-month]="!cell.inMonth"
               [class.today]="cell.isToday"
-              (click)="createJobForDate(cell.isoDate)"
             >
               <span class="calendar-day">{{ cell.dayNumber }}</span>
 
               @for (job of cell.jobs; track job.id) {
-                <span
+                <button
+                  type="button"
                   class="calendar-job"
                   [class.scheduled]="job.status === 'scheduled' || job.status === 'in_progress'"
                   [class.completed]="job.status === 'completed'"
@@ -90,13 +89,27 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
                   (click)="selectJob(job, $event)"
                 >
                   {{ job.title }}
-                </span>
+                </button>
               }
 
               @if (cell.moreJobs > 0) {
                 <span class="calendar-more">+{{ cell.moreJobs }} more</span>
               }
-            </button>
+
+              <div class="calendar-cell-actions">
+                <button
+                  type="button"
+                  class="calendar-new-job"
+                  (click)="createJobForDate(cell.isoDate)"
+                  [attr.aria-label]="'shell.newJob' | translate"
+                  [title]="'shell.newJob' | translate"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="newJobIcon"></path>
+                  </svg>
+                </button>
+              </div>
+            </article>
           }
         </div>
 
@@ -194,12 +207,12 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         border-radius: 1rem;
         border: 1px solid var(--ghost-border);
         background: var(--surface-soft);
-        padding: 0.9rem;
+        padding: 0;
         display: flex;
         flex-direction: column;
         gap: 0.4rem;
         text-align: left;
-        cursor: pointer;
+        align-items: stretch;
       }
 
       .calendar-cell.today {
@@ -212,6 +225,7 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
 
       .calendar-day {
         font-weight: 700;
+        padding: 0 8px;
       }
 
       .calendar-job {
@@ -219,6 +233,10 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         border-radius: 0.7rem;
         font-size: 0.84rem;
         line-height: 1.25;
+        border: 0;
+        text-align: left;
+        color: inherit;
+        cursor: pointer;
       }
 
       .calendar-job.scheduled {
@@ -240,6 +258,38 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
       .calendar-more {
         font-size: 0.78rem;
         color: var(--text-muted);
+      }
+
+      .calendar-cell-actions {
+        margin-top: auto;
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 0.4rem;
+      }
+
+      .calendar-new-job {
+        width: 1.5rem;
+        height: 1.5rem;
+        margin: 2px;
+        border-radius: 999px;
+        border: 1px solid rgba(251, 191, 36, 0.36);
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.96) 0%, rgba(245, 158, 11, 0.96) 100%);
+        color: #241400;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0.8rem 1.8rem rgba(15, 23, 42, 0.18);
+        cursor: pointer;
+      }
+
+      .calendar-new-job svg {
+        width: 1rem;
+        height: 1rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
 
       .sticky-panel {
@@ -294,6 +344,7 @@ export class CalendarPageComponent {
 
   readonly weekdayLabels = computed(() => buildWeekdayLabels(this.i18n.currentLocale()));
   readonly showWeekdayHeadings = computed(() => this.calendarColumnCount() >= 7);
+  readonly newJobIcon = 'M12 5v14M5 12h14';
 
   readonly monthTitle = computed(() => monthLabel(this.visibleMonth(), this.i18n.currentLocale()));
 
