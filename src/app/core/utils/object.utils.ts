@@ -3,7 +3,7 @@ export function stripUndefined<T>(value: T): T {
     return value.map((entry) => stripUndefined(entry)) as T;
   }
 
-  if (value && typeof value === 'object' && !(value instanceof Date)) {
+  if (isPlainObject(value)) {
     return Object.entries(value).reduce<Record<string, unknown>>((accumulator, [key, currentValue]) => {
       if (currentValue === undefined) {
         return accumulator;
@@ -15,6 +15,15 @@ export function stripUndefined<T>(value: T): T {
   }
 
   return value;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || value instanceof Date) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 export function valueOrUndefined(value: string | null | undefined): string | undefined {
