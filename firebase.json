@@ -10,7 +10,7 @@
     "rules": "storage.rules"
   },
   "hosting": {
-    "site": "job-ledger",
+    "site": "jobledger",
     "public": "dist/paint-ledger/browser",
     "ignore": [
       "firebase.json",

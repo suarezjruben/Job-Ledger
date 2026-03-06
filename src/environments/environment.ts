@@ -4,12 +4,11 @@ export const environment: AppEnvironment = {
   production: true,
   imageApiBaseUrl: '/api',
   firebase: {
-    apiKey: "AIzaSyAL9GnrWje5ApapxJ00_RtCMTRI8NCS4qA",
-    authDomain: "paint-ledger.firebaseapp.com",
-    projectId: "paint-ledger",
-    storageBucket: "paint-ledger.firebasestorage.app",
-    messagingSenderId: "312154427511",
-    appId: "1:312154427511:web:ea6b1da108c0bf45323672",
-    measurementId: "G-K05RBSFM4T"
+    apiKey: "replace-with-firebase-web-api-key",
+    authDomain: "job-ledger-2026.firebaseapp.com",
+    projectId: "job-ledger-2026",
+    storageBucket: "job-ledger-2026.firebasestorage.app",
+    messagingSenderId: "117919508121",
+    appId: "replace-with-firebase-web-app-id"
   }
 };

@@ -71,7 +71,7 @@ Run Angular locally:
 npm start
 ```
 
-Note: development config calls `https://us-central1-paint-ledger.cloudfunctions.net/api` by default.
+Note: development config calls `https://us-central1-job-ledger-2026.cloudfunctions.net/api` by default.
 
 ## Deploy
 

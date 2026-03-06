@@ -49,5 +49,5 @@ jobs:
           EOF
 
       - name: Deploy hosting and functions
-        run: npx firebase-tools deploy --project paint-ledger --only hosting,functions
+        run: npx firebase-tools deploy --project job-ledger-2026 --only hosting,functions
 
