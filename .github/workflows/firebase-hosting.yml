@@ -6,6 +6,9 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -32,12 +35,10 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Configure Firebase service account
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Write functions environment variables
         run: |
@@ -49,5 +50,5 @@ jobs:
           EOF
 
       - name: Deploy hosting and functions
-        run: npx firebase-tools deploy --project job-ledger-2026 --only hosting,functions
+        run: npx firebase-tools@14.26.0 deploy --project job-ledger-2026 --only hosting,functions
 
