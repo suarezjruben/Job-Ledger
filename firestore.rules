@@ -5,7 +5,73 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    match /users/{userId}/{document=**} {
+    function isAllowedContentType(value) {
+      return value in ['image/webp', 'image/jpeg'];
+    }
+
+    function validImageDoc(userId, jobId) {
+      return request.resource.data.keys().hasAll([
+          'ownerUid',
+          'displayKey',
+          'thumbKey',
+          'displayContentType',
+          'thumbContentType',
+          'displayBytes',
+          'thumbBytes',
+          'totalBytes',
+          'width',
+          'height',
+          'createdAt'
+        ])
+        && request.resource.data.ownerUid == userId
+        && request.resource.data.displayKey is string
+        && request.resource.data.thumbKey is string
+        && request.resource.data.displayKey.matches(
+            '^users/' + userId + '/jobs/' + jobId + '/display/[A-Za-z0-9_-]+\\.(webp|jpg)$'
+          )
+        && request.resource.data.thumbKey.matches(
+            '^users/' + userId + '/jobs/' + jobId + '/thumb/[A-Za-z0-9_-]+\\.(webp|jpg)$'
+          )
+        && request.resource.data.displayContentType is string
+        && request.resource.data.thumbContentType is string
+        && isAllowedContentType(request.resource.data.displayContentType)
+        && isAllowedContentType(request.resource.data.thumbContentType)
+        && request.resource.data.displayBytes is int
+        && request.resource.data.thumbBytes is int
+        && request.resource.data.totalBytes is int
+        && request.resource.data.displayBytes > 0
+        && request.resource.data.displayBytes <= 2097152
+        && request.resource.data.thumbBytes > 0
+        && request.resource.data.thumbBytes <= 204800
+        && request.resource.data.totalBytes
+            == request.resource.data.displayBytes + request.resource.data.thumbBytes
+        && request.resource.data.width is int
+        && request.resource.data.height is int
+        && request.resource.data.width > 0
+        && request.resource.data.height > 0
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    match /users/{userId}/clients/{clientId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /users/{userId}/jobs/{jobId} {
+      allow read, write: if isOwner(userId);
+
+      match /images/{imageId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && validImageDoc(userId, jobId);
+        allow update: if false;
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /users/{userId}/invoices/{invoiceId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /users/{userId}/profile/{documentId} {
       allow read, write: if isOwner(userId);
     }
   }

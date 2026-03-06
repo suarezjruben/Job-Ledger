@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
@@ -7,7 +10,7 @@
     "rules": "storage.rules"
   },
   "hosting": {
-    "site": "job-ledger",
+    "site": "jobledger",
     "public": "dist/paint-ledger/browser",
     "ignore": [
       "firebase.json",
@@ -15,6 +18,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "api/**",
+        "function": "api"
+      },
       {
         "source": "**",
         "destination": "/index.html"

@@ -11,12 +11,12 @@ export const JOB_STATUSES = [
 
 export const INVOICE_STATUSES = ['draft', 'issued', 'paid', 'void', 'archived'] as const;
 export const LINE_ITEM_KINDS = ['labor', 'material', 'custom'] as const;
-export const ATTACHMENT_KINDS = ['photo', 'document'] as const;
+export const JOB_IMAGE_VARIANTS = ['thumb', 'display'] as const;
 
 export type JobStatus = (typeof JOB_STATUSES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export type LineItemKind = (typeof LINE_ITEM_KINDS)[number];
-export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
+export type JobImageVariant = (typeof JOB_IMAGE_VARIANTS)[number];
 
 export interface PostalAddress {
   line1: string;
@@ -68,14 +68,18 @@ export interface JobRecord {
   updatedAt: Timestamp;
 }
 
-export interface JobAttachmentRecord {
+export interface JobImageRecord {
   id: string;
-  jobId: string;
-  kind: AttachmentKind;
-  fileName: string;
-  contentType: string;
-  sizeBytes: number;
-  storagePath: string;
+  ownerUid: string;
+  displayKey: string;
+  thumbKey: string;
+  displayContentType: string;
+  thumbContentType: string;
+  displayBytes: number;
+  thumbBytes: number;
+  totalBytes: number;
+  width: number;
+  height: number;
   createdAt: Timestamp;
 }
 
