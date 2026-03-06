@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '@ngx-translate/core';
+import { AppI18nService } from '../../core/services/app-i18n.service';
 import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { InvoiceWorkflowService } from '../../core/services/invoice-workflow.service';
 import { InvoiceRecord, INVOICE_STATUSES } from '../../core/models';
@@ -10,30 +12,30 @@ import { toCurrency } from '../../core/utils/money.utils';
 @Component({
   selector: 'app-invoices-list-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid single">
       <article class="panel stack-lg">
         <div class="page-header">
           <div>
-            <p class="eyebrow">Invoices</p>
-            <h2>Drafts, issued work, and payments</h2>
+            <p class="eyebrow">{{ 'invoices.list.eyebrow' | translate }}</p>
+            <h2>{{ 'invoices.list.title' | translate }}</h2>
           </div>
         </div>
 
         <div class="grid-two">
           <label class="field">
-            <span>Search</span>
+            <span>{{ 'common.search' | translate }}</span>
             <input type="search" [value]="search()" (input)="search.set(($any($event.target)).value)" />
           </label>
 
           <label class="field">
-            <span>Status</span>
+            <span>{{ 'common.status' | translate }}</span>
             <select [value]="statusFilter()" (change)="statusFilter.set(($any($event.target)).value)">
-              <option value="all">All statuses</option>
+              <option value="all">{{ 'invoices.list.allStatuses' | translate }}</option>
               @for (status of statuses; track status) {
-                <option [value]="status">{{ status }}</option>
+                <option [value]="status">{{ ('invoiceStatus.' + status) | translate }}</option>
               }
             </select>
           </label>
@@ -52,23 +54,27 @@ import { toCurrency } from '../../core/utils/money.utils';
                     <h3>{{ invoice.invoiceNumber }}</h3>
                     <p>{{ invoice.clientSnapshot.displayName }} | {{ invoice.jobSnapshot.title }}</p>
                   </div>
-                  <a class="text-link" [routerLink]="['/invoices', invoice.id]">Open</a>
+                  <a class="text-link" [routerLink]="['/invoices', invoice.id]">{{ 'common.open' | translate }}</a>
                 </div>
 
                 <div class="tag-row">
-                  <span class="pill">{{ invoice.status }}</span>
+                  <span class="pill">{{ ('invoiceStatus.' + invoice.status) | translate }}</span>
                   <span class="pill">{{ toCurrency(invoice.subtotalCents) }}</span>
                 </div>
 
                 <div class="actions wrap">
                   <button type="button" class="secondary-button" (click)="download(invoice)">
-                    Download PDF
+                    {{ 'common.downloadPdf' | translate }}
                   </button>
 
                   @if (!invoice.archivedAt && invoice.status !== 'archived') {
-                    <button type="button" class="ghost-button" (click)="archive(invoice)">Archive</button>
+                    <button type="button" class="ghost-button" (click)="archive(invoice)">
+                      {{ 'common.archive' | translate }}
+                    </button>
                   } @else {
-                    <button type="button" class="ghost-button" (click)="restore(invoice)">Restore</button>
+                    <button type="button" class="ghost-button" (click)="restore(invoice)">
+                      {{ 'common.restore' | translate }}
+                    </button>
                   }
                 </div>
               </article>
@@ -76,8 +82,8 @@ import { toCurrency } from '../../core/utils/money.utils';
           </div>
         } @else {
           <div class="empty-state compact">
-            <h3>No invoices match that filter</h3>
-            <p>Create a draft from a completed job to start your billing history.</p>
+            <h3>{{ 'invoices.list.empty.title' | translate }}</h3>
+            <p>{{ 'invoices.list.empty.body' | translate }}</p>
           </div>
         }
       </article>
@@ -87,6 +93,7 @@ import { toCurrency } from '../../core/utils/money.utils';
 export class InvoicesListPageComponent {
   private readonly invoicesRepository = inject(InvoicesRepository);
   private readonly invoiceWorkflow = inject(InvoiceWorkflowService);
+  private readonly i18n = inject(AppI18nService);
 
   readonly search = signal('');
   readonly statusFilter = signal<'all' | InvoiceRecord['status']>('all');
@@ -118,7 +125,7 @@ export class InvoicesListPageComponent {
     try {
       await this.invoiceWorkflow.downloadPdf(invoice);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to download invoice.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('invoices.list.errors.download'));
     }
   }
 
@@ -126,7 +133,7 @@ export class InvoicesListPageComponent {
     try {
       await this.invoicesRepository.archiveInvoice(invoice.id);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to archive invoice.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('invoices.list.errors.archive'));
     }
   }
 
@@ -134,7 +141,7 @@ export class InvoicesListPageComponent {
     try {
       await this.invoicesRepository.restoreInvoice(invoice.id);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to restore invoice.');
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('invoices.list.errors.restore'));
     }
   }
 }

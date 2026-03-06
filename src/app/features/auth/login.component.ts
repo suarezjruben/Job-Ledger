@@ -1,24 +1,39 @@
 import { ChangeDetectionStrategy, Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { TranslatePipe } from '@ngx-translate/core';
 import { FirebaseError } from 'firebase/app';
 import { Router } from '@angular/router';
 import { BusinessProfileRepository } from '../../core/services/business-profile.repository';
+import { AppI18nService, AppLanguage } from '../../core/services/app-i18n.service';
 import { SessionService } from '../../core/services/session.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="auth-page">
       <div class="auth-panel">
-        <p class="eyebrow">JobLedger</p>
-        <h1>Contractor operations without the spreadsheet sprawl.</h1>
+        <div class="auth-head">
+          <p class="eyebrow">{{ 'app.name' | translate }}</p>
+
+          <label class="language-picker">
+            <span>{{ 'preferences.language.label' | translate }}</span>
+            <select [value]="i18n.language()" (change)="setLanguage(($any($event.target)).value)">
+              @for (language of i18n.languages; track language.code) {
+                <option [value]="language.code" [selected]="i18n.language() === language.code">
+                  {{ ('preferences.language.options.' + language.code) | translate }}
+                </option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <h1>{{ 'auth.title' | translate }}</h1>
         <p class="auth-copy">
-          Log work, keep the calendar honest, and generate invoice PDFs that stay tied to the job
-          history.
+          {{ 'auth.copy' | translate }}
         </p>
 
         <div class="auth-toggle">
@@ -28,7 +43,7 @@ import { SessionService } from '../../core/services/session.service';
             [class.active]="mode() === 'sign-in'"
             (click)="setMode('sign-in')"
           >
-            Sign in
+            {{ 'auth.signInTab' | translate }}
           </button>
           <button
             type="button"
@@ -36,25 +51,37 @@ import { SessionService } from '../../core/services/session.service';
             [class.active]="mode() === 'sign-up'"
             (click)="setMode('sign-up')"
           >
-            Create account
+            {{ 'auth.signUpTab' | translate }}
           </button>
         </div>
 
         <form class="stack-lg" [formGroup]="form" (ngSubmit)="submit()">
           <label class="field">
-            <span>Email</span>
-            <input type="email" formControlName="email" placeholder="owner@jobledger.app" />
+            <span>{{ 'auth.emailLabel' | translate }}</span>
+            <input
+              type="email"
+              formControlName="email"
+              [placeholder]="'auth.emailPlaceholder' | translate"
+            />
           </label>
 
           <label class="field">
-            <span>Password</span>
-            <input type="password" formControlName="password" placeholder="Minimum 6 characters" />
+            <span>{{ 'auth.passwordLabel' | translate }}</span>
+            <input
+              type="password"
+              formControlName="password"
+              [placeholder]="'auth.passwordPlaceholder' | translate"
+            />
           </label>
 
           @if (mode() === 'sign-up') {
             <label class="field">
-              <span>Confirm password</span>
-              <input type="password" formControlName="confirmPassword" placeholder="Re-enter password" />
+              <span>{{ 'auth.confirmPasswordLabel' | translate }}</span>
+              <input
+                type="password"
+                formControlName="confirmPassword"
+                [placeholder]="'auth.confirmPasswordPlaceholder' | translate"
+              />
             </label>
           }
 
@@ -63,7 +90,13 @@ import { SessionService } from '../../core/services/session.service';
           }
 
           <button type="submit" class="primary-button wide" [disabled]="loading()">
-            {{ loading() ? 'Working...' : mode() === 'sign-in' ? 'Sign in' : 'Create account' }}
+            {{
+              loading()
+                ? ('auth.working' | translate)
+                : mode() === 'sign-in'
+                  ? ('auth.signInButton' | translate)
+                  : ('auth.signUpButton' | translate)
+            }}
           </button>
         </form>
       </div>
@@ -82,9 +115,27 @@ import { SessionService } from '../../core/services/session.service';
         width: min(100%, 34rem);
         padding: 2rem;
         border-radius: 1.75rem;
-        background: rgba(15, 23, 42, 0.84);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        box-shadow: 0 32px 80px rgba(15, 23, 42, 0.35);
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        box-shadow: var(--shadow);
+      }
+
+      .auth-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 1rem;
+      }
+
+      .language-picker {
+        display: grid;
+        gap: 0.35rem;
+        min-width: 9rem;
+      }
+
+      .language-picker span {
+        color: var(--text-muted);
+        font-size: 0.82rem;
       }
 
       h1 {
@@ -101,7 +152,7 @@ import { SessionService } from '../../core/services/session.service';
         display: inline-flex;
         padding: 0.3rem;
         border-radius: 999px;
-        background: rgba(30, 41, 59, 0.9);
+        background: var(--surface-nav);
         margin-bottom: 1.5rem;
       }
 
@@ -117,7 +168,7 @@ import { SessionService } from '../../core/services/session.service';
 
       .segmented-button.active {
         background: var(--accent);
-        color: #071018;
+        color: var(--accent-ink);
         font-weight: 700;
       }
 
@@ -132,6 +183,7 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly session = inject(SessionService);
   private readonly businessProfiles = inject(BusinessProfileRepository);
+  readonly i18n = inject(AppI18nService);
 
   readonly mode = signal<'sign-in' | 'sign-up'>('sign-in');
   readonly loading = signal(false);
@@ -148,6 +200,10 @@ export class LoginComponent {
     this.error.set('');
   }
 
+  setLanguage(language: AppLanguage): void {
+    this.i18n.setLanguage(language);
+  }
+
   async submit(): Promise<void> {
     this.error.set('');
 
@@ -161,7 +217,7 @@ export class LoginComponent {
     const confirmPassword = this.form.controls.confirmPassword.value ?? '';
 
     if (this.mode() === 'sign-up' && password !== confirmPassword) {
-      this.error.set('Passwords do not match.');
+      this.error.set(this.i18n.instant('auth.errors.passwordMismatch'));
       return;
     }
 
@@ -190,7 +246,7 @@ export class LoginComponent {
 
   private toAuthErrorMessage(error: unknown): string {
     if (!(error instanceof FirebaseError)) {
-      return error instanceof Error ? error.message : 'Unable to complete that request.';
+      return error instanceof Error ? error.message : this.i18n.instant('auth.errors.generic');
     }
 
     if (this.mode() === 'sign-in') {
@@ -199,24 +255,24 @@ export class LoginComponent {
         error.code === 'auth/invalid-login-credentials' ||
         error.code === 'auth/user-not-found'
       ) {
-        return 'Account not found. Please sign up or check your email and password.';
+        return this.i18n.instant('auth.errors.accountNotFound');
       }
 
       if (error.code === 'auth/too-many-requests') {
-        return 'Too many sign-in attempts. Try again in a few minutes.';
+        return this.i18n.instant('auth.errors.tooManyRequests');
       }
     }
 
     if (this.mode() === 'sign-up') {
       if (error.code === 'auth/email-already-in-use') {
-        return 'An account with that email already exists. Please sign in instead.';
+        return this.i18n.instant('auth.errors.emailInUse');
       }
 
       if (error.code === 'auth/weak-password') {
-        return 'Choose a stronger password with at least 6 characters.';
+        return this.i18n.instant('auth.errors.weakPassword');
       }
     }
 
-    return 'Unable to complete that request right now.';
+    return this.i18n.instant('auth.errors.generic');
   }
 }

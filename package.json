@@ -20,6 +20,8 @@
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
     "@angular/service-worker": "^19.2.19",
+    "@ngx-translate/core": "^17.0.0",
+    "@ngx-translate/http-loader": "^17.0.0",
     "browser-image-compression": "^2.0.2",
     "firebase": "^11.10.0",
     "jspdf": "^4.2.0",

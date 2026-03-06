@@ -2,41 +2,44 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '@ngx-translate/core';
 import { HistoryEntry } from '../../core/models';
+import { AppI18nService } from '../../core/services/app-i18n.service';
 import { ClientsRepository } from '../../core/services/clients.repository';
 import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { JobsRepository } from '../../core/services/jobs.repository';
+import { formatDateRange, formatDisplayDate } from '../../core/utils/date.utils';
 import { toCurrency } from '../../core/utils/money.utils';
 
 @Component({
   selector: 'app-history-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid single">
       <article class="panel stack-lg">
         <div class="page-header">
           <div>
-            <p class="eyebrow">History</p>
-            <h2>Search long-term job and invoice records</h2>
+            <p class="eyebrow">{{ 'history.eyebrow' | translate }}</p>
+            <h2>{{ 'history.title' | translate }}</h2>
           </div>
         </div>
 
         <div class="grid-two">
           <label class="field">
-            <span>Record type</span>
+            <span>{{ 'history.filters.recordType' | translate }}</span>
             <select [value]="recordType()" (change)="recordType.set(($any($event.target)).value)">
-              <option value="all">All records</option>
-              <option value="job">Jobs</option>
-              <option value="invoice">Invoices</option>
+              <option value="all">{{ 'history.filters.recordTypes.all' | translate }}</option>
+              <option value="job">{{ 'history.filters.recordTypes.job' | translate }}</option>
+              <option value="invoice">{{ 'history.filters.recordTypes.invoice' | translate }}</option>
             </select>
           </label>
 
           <label class="field">
-            <span>Client</span>
+            <span>{{ 'common.client' | translate }}</span>
             <select [value]="clientId()" (change)="clientId.set(($any($event.target)).value)">
-              <option value="">All clients</option>
+              <option value="">{{ 'history.filters.allClients' | translate }}</option>
               @for (client of clients(); track client.id) {
                 <option [value]="client.id">{{ client.displayName }}</option>
               }
@@ -46,15 +49,15 @@ import { toCurrency } from '../../core/utils/money.utils';
 
         <div class="grid-three">
           <label class="field">
-            <span>Status</span>
+            <span>{{ 'common.status' | translate }}</span>
             <input type="text" [value]="status()" (input)="status.set(($any($event.target)).value)" />
           </label>
           <label class="field">
-            <span>From date</span>
+            <span>{{ 'history.filters.fromDate' | translate }}</span>
             <input type="date" [value]="fromDate()" (input)="fromDate.set(($any($event.target)).value)" />
           </label>
           <label class="field">
-            <span>To date</span>
+            <span>{{ 'history.filters.toDate' | translate }}</span>
             <input type="date" [value]="toDate()" (input)="toDate.set(($any($event.target)).value)" />
           </label>
         </div>
@@ -68,12 +71,12 @@ import { toCurrency } from '../../core/utils/money.utils';
                     <h3>{{ entry.title }}</h3>
                     <p>{{ entry.subtitle }}</p>
                   </div>
-                  <a class="text-link" [routerLink]="entry.route">Open</a>
+                  <a class="text-link" [routerLink]="entry.route">{{ 'common.open' | translate }}</a>
                 </div>
 
                 <div class="tag-row">
-                  <span class="pill">{{ entry.kind }}</span>
-                  <span class="pill">{{ entry.status }}</span>
+                  <span class="pill">{{ ('history.kinds.' + entry.kind) | translate }}</span>
+                  <span class="pill">{{ statusLabel(entry) }}</span>
                   @if (entry.amountCents !== undefined) {
                     <span class="pill">{{ toCurrency(entry.amountCents) }}</span>
                   }
@@ -85,8 +88,8 @@ import { toCurrency } from '../../core/utils/money.utils';
           </div>
         } @else {
           <div class="empty-state compact">
-            <h3>No records match</h3>
-            <p>Try widening the date range or removing the status filter.</p>
+            <h3>{{ 'history.empty.title' | translate }}</h3>
+            <p>{{ 'history.empty.body' | translate }}</p>
           </div>
         }
       </article>
@@ -97,6 +100,7 @@ export class HistoryPageComponent {
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly jobsRepository = inject(JobsRepository);
   private readonly invoicesRepository = inject(InvoicesRepository);
+  private readonly i18n = inject(AppI18nService);
 
   readonly recordType = signal<'all' | 'job' | 'invoice'>('all');
   readonly clientId = signal('');
@@ -114,7 +118,9 @@ export class HistoryPageComponent {
         id: job.id,
         kind: 'job' as const,
         title: job.title,
-        subtitle: this.clients().find((client) => client.id === job.clientId)?.displayName ?? 'Unknown client',
+        subtitle:
+          this.clients().find((client) => client.id === job.clientId)?.displayName ??
+          this.i18n.instant('common.unknownClient'),
         status: job.status,
         clientId: job.clientId,
         primaryDate: job.startDate,
@@ -157,6 +163,12 @@ export class HistoryPageComponent {
   }
 
   dateRange(entry: HistoryEntry): string {
-    return entry.secondaryDate ? `${entry.primaryDate} to ${entry.secondaryDate}` : entry.primaryDate;
+    return entry.secondaryDate
+      ? formatDateRange(entry.primaryDate, entry.secondaryDate, this.i18n.currentLocale())
+      : formatDisplayDate(entry.primaryDate, this.i18n.currentLocale());
+  }
+
+  statusLabel(entry: HistoryEntry): string {
+    return this.i18n.instant(`${entry.kind === 'job' ? 'jobStatus' : 'invoiceStatus'}.${entry.status}`);
   }
 }
