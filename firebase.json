@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
@@ -15,6 +18,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "api/**",
+        "function": "api"
+      },
       {
         "source": "**",
         "destination": "/index.html"

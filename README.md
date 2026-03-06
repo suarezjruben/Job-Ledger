@@ -1,59 +1,98 @@
-# PaintLedger
+# Job Ledger
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.19.
+Angular + Firebase app for job tracking, invoices, and private job photo storage.
 
-## Development server
+## Private Image Storage (R2)
 
-To start a local development server, run:
+Job photos are stored as private Cloudflare R2 objects with short-lived signed URLs.
 
-```bash
-ng serve
-```
+- Originals are not stored.
+- Client generates optimized variants before upload:
+  - `thumb`: max width `480px`, quality `0.70`, limit `<= 200KB`
+  - `display`: max width `1600px`, quality `0.78`, limit `<= 2MB`
+- Image bytes never pass through backend servers.
+- Firestore stores metadata only in `users/{uid}/jobs/{jobId}/images/{imageId}`.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Required Credentials
 
-## Code scaffolding
+### Cloudflare R2
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+1. Create bucket:
+   - Cloudflare Dashboard -> `R2 Object Storage` -> `Create bucket`
+   - Example: `job-ledger-images`
+2. Create API token:
+   - `R2` -> `Manage R2 API Tokens`
+   - Permissions: `Object Read`, `Object Write`
+3. Save these values:
+   - `R2_ACCOUNT_ID`
+   - `R2_ACCESS_KEY_ID`
+   - `R2_SECRET_ACCESS_KEY`
+   - `R2_BUCKET_NAME`
 
-```bash
-ng generate component component-name
-```
+### Firebase Service Account
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+1. Firebase Console -> `Project settings` -> `Service accounts`
+2. Generate a new private key JSON.
+3. Save these values if you need explicit service-account auth in functions:
+   - `FIREBASE_PROJECT_ID`
+   - `FIREBASE_CLIENT_EMAIL`
+   - `FIREBASE_PRIVATE_KEY`
 
-```bash
-ng generate --help
-```
+## Local Setup
 
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+Install app dependencies:
 
 ```bash
-ng e2e
+npm install
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Install functions dependencies:
 
-## Additional Resources
+```bash
+npm install --prefix functions
+```
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Create `functions/.env` (do not commit). You can copy `functions/.env.example`:
+
+```bash
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=...
+# Optional (functions can use default runtime credentials in Firebase):
+FIREBASE_PROJECT_ID=...
+FIREBASE_CLIENT_EMAIL=...
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+Run Angular locally:
+
+```bash
+npm start
+```
+
+Note: development config calls `https://us-central1-paint-ledger.cloudfunctions.net/api` by default.
+
+## Deploy
+
+Deploy both hosting and functions:
+
+```bash
+firebase deploy --only hosting,functions
+```
+
+## Image API Endpoints
+
+All endpoints require Firebase ID token in `Authorization: Bearer <token>`.
+
+- `POST /api/images/sign-upload`
+- `POST /api/images/sign-download`
+- `POST /api/images/delete`
+
+## Development Scripts
+
+```bash
+npm start
+npm run build
+npm test
+```

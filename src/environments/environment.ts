@@ -2,6 +2,7 @@ import { AppEnvironment } from './environment.model';
 
 export const environment: AppEnvironment = {
   production: true,
+  imageApiBaseUrl: '/api',
   firebase: {
     apiKey: "AIzaSyAL9GnrWje5ApapxJ00_RtCMTRI8NCS4qA",
     authDomain: "paint-ledger.firebaseapp.com",

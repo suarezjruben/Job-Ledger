@@ -5,22 +5,14 @@ service firebase.storage {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    function allowedContentType() {
-      return request.resource != null &&
-        request.resource.contentType.matches('image/.*|application/pdf');
-    }
-
-    function allowedExtension() {
-      return !request.resource.name.matches('.*\\.(exe|bat|cmd|sh|msi|com|scr|js)$');
-    }
-
-    match /users/{userId}/{allPaths=**} {
+    match /users/{userId}/invoices/{invoiceId}/{fileName} {
       allow read: if isOwner(userId);
       allow delete: if isOwner(userId);
-      allow create, update: if isOwner(userId) &&
-        request.resource.size < 15 * 1024 * 1024 &&
-        allowedContentType() &&
-        allowedExtension();
+      allow create, update: if isOwner(userId)
+        && fileName == 'invoice.pdf'
+        && request.resource != null
+        && request.resource.contentType == 'application/pdf'
+        && request.resource.size < 15 * 1024 * 1024;
     }
   }
 }
