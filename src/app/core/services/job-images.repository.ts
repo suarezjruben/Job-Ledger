@@ -4,6 +4,7 @@ import { Firestore, collection, collectionData, doc, orderBy, query } from '@ang
 import {
   CollectionReference,
   DocumentReference,
+  FirestoreError,
   WithFieldValue,
   getDoc,
   increment,
@@ -89,27 +90,49 @@ export class JobImagesRepository {
 
     const imageReference = this.imageRef(uid, jobId, imageId);
 
-    await setDoc(
-      imageReference,
-      stripUndefined({
-        ownerUid: uid,
-        displayKey,
-        thumbKey,
-        displayContentType: display.contentType,
-        thumbContentType: thumb.contentType,
-        displayBytes: display.bytes,
-        thumbBytes: thumb.bytes,
-        totalBytes: display.bytes + thumb.bytes,
-        width: display.width,
-        height: display.height,
-        createdAt: serverTimestamp()
-      }) as WithFieldValue<JobImageRecord>
-    );
+    try {
+      await setDoc(
+        imageReference,
+        stripUndefined({
+          ownerUid: uid,
+          displayKey,
+          thumbKey,
+          displayContentType: display.contentType,
+          thumbContentType: thumb.contentType,
+          displayBytes: display.bytes,
+          thumbBytes: thumb.bytes,
+          totalBytes: display.bytes + thumb.bytes,
+          width: display.width,
+          height: display.height,
+          createdAt: serverTimestamp()
+        }) as WithFieldValue<JobImageRecord>
+      );
+    } catch (error) {
+      console.error('Unable to write job image metadata to Firestore.', {
+        jobId,
+        imageId,
+        uid,
+        error
+      });
+      throw new Error(this.describeFirestoreFailure(error, 'Unable to save image metadata to Firestore.'));
+    }
 
-    await updateDoc(jobReference, {
-      attachmentCount: increment(1),
-      updatedAt: serverTimestamp()
-    });
+    try {
+      await updateDoc(jobReference, {
+        attachmentCount: increment(1),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Unable to update the job attachment count after image upload.', {
+        jobId,
+        imageId,
+        uid,
+        error
+      });
+      throw new Error(
+        this.describeFirestoreFailure(error, 'Image uploaded, but the job record could not be updated.')
+      );
+    }
   }
 
   async getImageDownloadUrl(jobId: string, imageId: string, variant: JobImageVariant): Promise<string> {
@@ -285,6 +308,18 @@ export class JobImagesRepository {
     if (file.size > MAX_SOURCE_BYTES) {
       throw new Error('Each source photo must be 15 MB or smaller before compression.');
     }
+  }
+
+  private describeFirestoreFailure(error: unknown, fallback: string): string {
+    if (!(error instanceof FirestoreError)) {
+      return error instanceof Error ? error.message : fallback;
+    }
+
+    if (error.code === 'permission-denied') {
+      return `${fallback} Firestore rejected the write with permission-denied.`;
+    }
+
+    return `${fallback} (${error.code})`;
   }
 
   private imagesCollection(uid: string, jobId: string): CollectionReference<JobImageRecord> {

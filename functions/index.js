@@ -35,6 +35,7 @@ exports.api = onRequest(
   },
   async (req, res) => {
     setCorsHeaders(req, res);
+    const normalizedPath = normalizePath(req.path);
 
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
@@ -42,8 +43,6 @@ exports.api = onRequest(
     }
 
     try {
-      const normalizedPath = normalizePath(req.path);
-
       if (req.method !== 'POST') {
         throw new HttpError(405, 'Only POST is allowed for this endpoint.');
       }
@@ -77,7 +76,14 @@ exports.api = onRequest(
           ? error.message
           : 'Unexpected server error while processing image request.';
 
-      if (!(error instanceof HttpError)) {
+      if (error instanceof HttpError) {
+        logger.warn('Image API request failed', {
+          path: normalizedPath,
+          method: req.method,
+          status,
+          message
+        });
+      } else {
         logger.error('Unexpected image API error', error);
       }
 

@@ -587,6 +587,8 @@ export class JobFormPageComponent {
       return;
     }
 
+    this.error.set('');
+
     try {
       await this.imagesRepository.uploadImage(jobId, file);
       input.value = '';
@@ -601,6 +603,8 @@ export class JobFormPageComponent {
     if (!jobId) {
       return;
     }
+
+    this.error.set('');
 
     try {
       const url = await this.imagesRepository.getImageDownloadUrl(jobId, image.id, 'display');
@@ -620,6 +624,8 @@ export class JobFormPageComponent {
     if (!window.confirm('Delete this photo?')) {
       return;
     }
+
+    this.error.set('');
 
     try {
       await this.imagesRepository.deleteImage(jobId, image.id);
