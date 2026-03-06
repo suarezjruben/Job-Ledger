@@ -1,16 +1,20 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import jsPDF from 'jspdf';
 import { BusinessProfile, InvoiceRecord } from '../models';
 import { formatDateRange } from '../utils/date.utils';
 import { toCurrency } from '../utils/money.utils';
+import { AppI18nService } from './app-i18n.service';
 
 @Injectable({ providedIn: 'root' })
 export class InvoicePdfService {
+  private readonly i18n = inject(AppI18nService);
+
   buildInvoicePdf(invoice: InvoiceRecord, profile: BusinessProfile): Blob {
     const document = new jsPDF({
       unit: 'pt',
       format: 'letter'
     });
+    const locale = this.i18n.currentLocale();
 
     const pageWidth = document.internal.pageSize.getWidth();
     const margin = 48;
@@ -42,13 +46,20 @@ export class InvoicePdfService {
 
     document.setFont('helvetica', 'bold');
     document.setFontSize(14);
-    document.text('Invoice', rightColumn, 56, { align: 'right' });
+    document.text(this.i18n.instant('history.kinds.invoice'), rightColumn, 56, { align: 'right' });
     document.setFont('helvetica', 'normal');
     document.setFontSize(11);
-    document.text(`Invoice #: ${invoice.invoiceNumber}`, rightColumn, 76, { align: 'right' });
-    document.text(`Status: ${invoice.status}`, rightColumn, 92, { align: 'right' });
+    document.text(`${this.i18n.instant('pdf.invoiceNumber')}: ${invoice.invoiceNumber}`, rightColumn, 76, {
+      align: 'right'
+    });
     document.text(
-      `Job dates: ${formatDateRange(invoice.jobSnapshot.startDate, invoice.jobSnapshot.endDate)}`,
+      `${this.i18n.instant('common.status')}: ${this.i18n.instant(`invoiceStatus.${invoice.status}`)}`,
+      rightColumn,
+      92,
+      { align: 'right' }
+    );
+    document.text(
+      `${this.i18n.instant('pdf.jobDates')}: ${formatDateRange(invoice.jobSnapshot.startDate, invoice.jobSnapshot.endDate, locale)}`,
       rightColumn,
       108,
       { align: 'right' }
@@ -60,7 +71,7 @@ export class InvoicePdfService {
     cursorY += 28;
 
     document.setFont('helvetica', 'bold');
-    document.text('Bill To', margin, cursorY);
+    document.text(this.i18n.instant('pdf.billTo'), margin, cursorY);
     document.setFont('helvetica', 'normal');
     cursorY += 16;
 
@@ -83,7 +94,7 @@ export class InvoicePdfService {
 
     cursorY += 10;
     document.setFont('helvetica', 'bold');
-    document.text('Job', margin, cursorY);
+    document.text(this.i18n.instant('common.job'), margin, cursorY);
     document.setFont('helvetica', 'normal');
     cursorY += 16;
     document.text(invoice.jobSnapshot.title, margin, cursorY);
@@ -138,7 +149,7 @@ export class InvoicePdfService {
     document.line(margin, cursorY, rightColumn, cursorY);
     cursorY += 22;
     document.setFont('helvetica', 'bold');
-    document.text('Subtotal', rightColumn - 88, cursorY, { align: 'right' });
+    document.text(this.i18n.instant('common.subtotal'), rightColumn - 88, cursorY, { align: 'right' });
     document.text(toCurrency(invoice.subtotalCents), rightColumn, cursorY, { align: 'right' });
 
     return document.output('blob');
@@ -155,10 +166,10 @@ export class InvoicePdfService {
 
   private drawTableHeader(document: jsPDF, margin: number, rightColumn: number, y: number): void {
     document.setFont('helvetica', 'bold');
-    document.text('Description', margin, y);
-    document.text('Unit', margin + 270, y);
-    document.text('Qty', margin + 360, y, { align: 'right' });
-    document.text('Rate', margin + 450, y, { align: 'right' });
-    document.text('Amount', rightColumn, y, { align: 'right' });
+    document.text(this.i18n.instant('common.description'), margin, y);
+    document.text(this.i18n.instant('pdf.unitShort'), margin + 270, y);
+    document.text(this.i18n.instant('pdf.qtyShort'), margin + 360, y, { align: 'right' });
+    document.text(this.i18n.instant('pdf.rateShort'), margin + 450, y, { align: 'right' });
+    document.text(this.i18n.instant('pdf.amountShort'), rightColumn, y, { align: 'right' });
   }
 }

@@ -80,16 +80,12 @@ export function rangeOverlaps(
   return rangeStart <= targetEnd && targetStart <= rangeEnd;
 }
 
-export function formatDateRange(startDate: string, endDate: string): string {
+export function formatDateRange(startDate: string, endDate: string, locale = 'en-US'): string {
   if (startDate === endDate) {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(parseIsoDate(startDate));
+    return formatDisplayDate(startDate, locale);
   }
 
-  const formatter = new Intl.DateTimeFormat('en-US', {
+  const formatter = new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
@@ -98,9 +94,24 @@ export function formatDateRange(startDate: string, endDate: string): string {
   return `${formatter.format(parseIsoDate(startDate))} - ${formatter.format(parseIsoDate(endDate))}`;
 }
 
-export function monthLabel(referenceMonth: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+export function monthLabel(referenceMonth: Date, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
     month: 'long',
     year: 'numeric'
   }).format(referenceMonth);
+}
+
+export function weekdayLabels(locale = 'en-US'): string[] {
+  const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+  const firstSunday = new Date(2026, 0, 4, 12, 0, 0, 0);
+
+  return Array.from({ length: 7 }, (_, index) => formatter.format(addDays(firstSunday, index)));
+}
+
+export function formatDisplayDate(value: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(parseIsoDate(value));
 }

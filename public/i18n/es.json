@@ -1,0 +1,374 @@
+{
+  "app": {
+    "name": "JobLedger",
+    "tagline": "Operaciones para contratistas"
+  },
+  "status": {
+    "offline": {
+      "title": "Modo sin conexión:",
+      "body": "las páginas en caché siguen abriendo, pero las acciones de Firebase necesitan una conexión activa."
+    },
+    "firebase": {
+      "title": "Se requiere configurar Firebase:",
+      "body": "reemplaza los valores de marcador de posición en"
+    }
+  },
+  "nav": {
+    "calendar": {
+      "label": "Calendario",
+      "caption": "Agenda y trabajo actual"
+    },
+    "clients": {
+      "label": "Clientes",
+      "caption": "Facturación e historial de servicio"
+    },
+    "invoices": {
+      "label": "Facturas",
+      "caption": "Borradores, emitidas y pagadas"
+    },
+    "history": {
+      "label": "Historial",
+      "caption": "Búsqueda de archivo a largo plazo"
+    },
+    "settings": {
+      "label": "Configuración",
+      "caption": "Perfil del negocio y preferencias"
+    }
+  },
+  "shell": {
+    "signedIn": "Sesión iniciada",
+    "signOut": "Cerrar sesión",
+    "pageTitle": "Mantén trabajos, facturas e historial en un solo lugar.",
+    "newJob": "Nuevo trabajo"
+  },
+  "preferences": {
+    "language": {
+      "label": "Idioma"
+    },
+    "theme": {
+      "label": "Tema",
+      "help": "El tema cambia al instante sin tocar el diseño oscuro actual.",
+      "options": {
+        "dark": "Modo oscuro",
+        "light": "Modo claro"
+      }
+    }
+  },
+  "common": {
+    "previous": "Anterior",
+    "today": "Hoy",
+    "next": "Siguiente",
+    "close": "Cerrar",
+    "client": "Cliente",
+    "job": "Trabajo",
+    "dates": "Fechas",
+    "status": "Estado",
+    "subtotal": "Subtotal",
+    "edit": "Editar",
+    "view": "Ver",
+    "open": "Abrir",
+    "search": "Buscar",
+    "notes": "Notas",
+    "description": "Descripción",
+    "kind": "Tipo",
+    "unitLabel": "Unidad",
+    "quantity": "Cantidad",
+    "rateCents": "Tarifa (centavos)",
+    "remove": "Quitar",
+    "cancel": "Cancelar",
+    "saving": "Guardando...",
+    "downloadPdf": "Descargar PDF",
+    "archive": "Archivar",
+    "restore": "Restaurar",
+    "delete": "Eliminar",
+    "unknownClient": "Cliente desconocido"
+  },
+  "auth": {
+    "title": "Operaciones para contratistas sin depender de hojas de cálculo.",
+    "copy": "Registra trabajo, mantén el calendario al día y genera PDFs de facturas vinculados al historial del trabajo.",
+    "signInTab": "Iniciar sesión",
+    "signUpTab": "Crear cuenta",
+    "emailLabel": "Correo electrónico",
+    "passwordLabel": "Contraseña",
+    "confirmPasswordLabel": "Confirmar contraseña",
+    "emailPlaceholder": "dueno@jobledger.app",
+    "passwordPlaceholder": "Mínimo 6 caracteres",
+    "confirmPasswordPlaceholder": "Vuelve a escribirla",
+    "working": "Procesando...",
+    "signInButton": "Iniciar sesión",
+    "signUpButton": "Crear cuenta",
+    "errors": {
+      "passwordMismatch": "Las contraseñas no coinciden.",
+      "accountNotFound": "No se encontró la cuenta. Regístrate o revisa tu correo y contraseña.",
+      "tooManyRequests": "Demasiados intentos de inicio de sesión. Intenta otra vez en unos minutos.",
+      "emailInUse": "Ya existe una cuenta con ese correo. Inicia sesión en su lugar.",
+      "weakPassword": "Elige una contraseña más fuerte con al menos 6 caracteres.",
+      "generic": "No se pudo completar la solicitud en este momento."
+    }
+  },
+  "settings": {
+    "profile": {
+      "eyebrow": "Perfil del negocio",
+      "title": "Datos de factura e información de contacto",
+      "note": "Se usa en cada PDF de factura generado.",
+      "fields": {
+        "businessName": "Nombre del negocio",
+        "contactEmail": "Correo de contacto",
+        "phone": "Teléfono",
+        "invoicePrefix": "Prefijo de factura",
+        "nextInvoiceSequence": "Siguiente secuencia de factura",
+        "line1": "Dirección postal línea 1",
+        "line2": "Dirección postal línea 2",
+        "city": "Ciudad",
+        "state": "Estado",
+        "postalCode": "Código postal"
+      },
+      "saving": "Guardando...",
+      "save": "Guardar configuración",
+      "saved": "Configuración guardada.",
+      "error": "No se pudo guardar la configuración."
+    },
+    "preferences": {
+      "eyebrow": "Preferencias de la app",
+      "title": "Tema e idioma",
+      "note": "Estas preferencias son locales para este navegador.",
+      "storageHint": "El tema y el idioma se guardan en este dispositivo y también se aplican en la pantalla de inicio de sesión."
+    }
+  },
+  "jobStatus": {
+    "scheduled": "Programado",
+    "in_progress": "En progreso",
+    "completed": "Completado",
+    "invoiced": "Facturado",
+    "canceled": "Cancelado",
+    "archived": "Archivado"
+  },
+  "invoiceStatus": {
+    "draft": "Borrador",
+    "issued": "Emitida",
+    "paid": "Pagada",
+    "void": "Anulada",
+    "archived": "Archivada"
+  },
+  "lineItemKinds": {
+    "labor": "Mano de obra",
+    "material": "Material",
+    "custom": "Personalizado"
+  },
+  "calendar": {
+    "eyebrow": "Calendario",
+    "selected": {
+      "eyebrow": "Trabajo seleccionado",
+      "editJob": "Editar trabajo",
+      "viewInvoice": "Ver factura",
+      "createInvoice": "Crear factura"
+    },
+    "empty": {
+      "eyebrow": "Panel de detalle",
+      "title": "Selecciona un trabajo",
+      "body": "Haz clic en una etiqueta del calendario para revisar el cliente, el rango de fechas y las acciones de factura."
+    },
+    "errors": {
+      "missingClient": "A este trabajo le falta el registro del cliente.",
+      "createInvoice": "No se pudo crear la factura."
+    }
+  },
+  "clients": {
+    "list": {
+      "eyebrow": "Clientes",
+      "title": "Contactos de servicio y facturación",
+      "newClient": "Nuevo cliente",
+      "searchLabel": "Buscar clientes",
+      "sections": {
+        "active": "Activos",
+        "archived": "Archivados"
+      },
+      "noBillingInfo": "Todavía no hay datos de facturación",
+      "archivedRecord": "Registro archivado",
+      "jobsCount": "{{count}} trabajos",
+      "invoicesCount": "{{count}} facturas",
+      "emptyActive": {
+        "title": "No hay clientes activos",
+        "body": "Agrega un cliente antes de empezar a registrar trabajo."
+      },
+      "emptyArchived": {
+        "title": "No hay clientes archivados",
+        "body": "Los registros archivados siguen disponibles para historial y capturas de factura."
+      },
+      "confirmDelete": "¿Eliminar a {{name}}?",
+      "errors": {
+        "archive": "No se pudo archivar el cliente.",
+        "restore": "No se pudo restaurar el cliente.",
+        "delete": "No se pudo eliminar el cliente.",
+        "cannotDelete": "Los clientes con historial de trabajos o facturas deben archivarse en su lugar."
+      }
+    },
+    "form": {
+      "eyebrow": "Registro del cliente",
+      "createTitle": "Crear cliente",
+      "editTitle": "Actualizar cliente",
+      "fields": {
+        "displayName": "Nombre visible",
+        "companyName": "Nombre de la empresa",
+        "billingEmail": "Correo de facturación",
+        "phone": "Teléfono",
+        "billingLine1": "Dirección de facturación línea 1",
+        "billingLine2": "Dirección de facturación línea 2",
+        "billingCity": "Ciudad de facturación",
+        "billingState": "Estado de facturación",
+        "billingPostalCode": "Código postal de facturación",
+        "serviceLine1": "Dirección del servicio línea 1",
+        "serviceLine2": "Dirección del servicio línea 2",
+        "serviceCity": "Ciudad del servicio",
+        "serviceState": "Estado del servicio",
+        "servicePostalCode": "Código postal del servicio"
+      },
+      "saveChanges": "Guardar cambios",
+      "createButton": "Crear cliente",
+      "errors": {
+        "save": "No se pudo guardar el cliente."
+      }
+    }
+  },
+  "history": {
+    "eyebrow": "Historial",
+    "title": "Busca registros históricos de trabajos y facturas",
+    "filters": {
+      "recordType": "Tipo de registro",
+      "recordTypes": {
+        "all": "Todos los registros",
+        "job": "Trabajos",
+        "invoice": "Facturas"
+      },
+      "allClients": "Todos los clientes",
+      "fromDate": "Desde",
+      "toDate": "Hasta"
+    },
+    "kinds": {
+      "job": "Trabajo",
+      "invoice": "Factura"
+    },
+    "empty": {
+      "title": "No hay registros que coincidan",
+      "body": "Prueba ampliando el rango de fechas o quitando el filtro de estado."
+    }
+  },
+  "invoices": {
+    "list": {
+      "eyebrow": "Facturas",
+      "title": "Borradores, trabajo emitido y pagos",
+      "allStatuses": "Todos los estados",
+      "empty": {
+        "title": "Ninguna factura coincide con ese filtro",
+        "body": "Crea un borrador desde un trabajo completado para empezar tu historial de facturación."
+      },
+      "errors": {
+        "download": "No se pudo descargar la factura.",
+        "archive": "No se pudo archivar la factura.",
+        "restore": "No se pudo restaurar la factura."
+      }
+    },
+    "detail": {
+      "eyebrow": "Detalle de la factura",
+      "invoiceStatus": "Estado de la factura",
+      "addLineItem": "Agregar concepto",
+      "saveDraft": "Guardar borrador",
+      "generating": "Generando...",
+      "issueInvoicePdf": "Emitir PDF de factura",
+      "markPaid": "Marcar como pagada",
+      "voidInvoice": "Anular",
+      "createReplacement": "Crear borrador de reemplazo",
+      "loading": {
+        "title": "Cargando factura...",
+        "body": "Si esto continúa, el ID de la factura puede ser inválido o los datos aún se están sincronizando."
+      },
+      "snapshot": {
+        "eyebrow": "Instantánea",
+        "title": "Contexto guardado de la factura",
+        "client": "Instantánea del cliente",
+        "job": "Instantánea del trabajo"
+      },
+      "errors": {
+        "saveDraft": "No se pudo guardar el borrador.",
+        "issue": "No se pudo emitir la factura.",
+        "download": "No se pudo descargar la factura.",
+        "markPaid": "No se pudo marcar la factura como pagada.",
+        "void": "No se pudo anular la factura.",
+        "archive": "No se pudo archivar la factura.",
+        "replacement": "No se pudo crear el borrador de reemplazo."
+      }
+    }
+  },
+  "jobs": {
+    "form": {
+      "eyebrow": "Registro del trabajo",
+      "createTitle": "Crear trabajo",
+      "editTitle": "Actualizar trabajo",
+      "viewInvoice": "Ver factura",
+      "createInvoice": "Crear factura",
+      "selectClient": "Selecciona un cliente",
+      "fields": {
+        "title": "Título del trabajo",
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de fin",
+        "line1": "Dirección del servicio línea 1",
+        "line2": "Dirección del servicio línea 2",
+        "city": "Ciudad",
+        "state": "Estado",
+        "postalCode": "Código postal",
+        "notes": "Notas internas"
+      },
+      "lineItems": {
+        "title": "Conceptos facturables",
+        "add": "Agregar línea"
+      },
+      "save": "Guardar trabajo",
+      "create": "Crear trabajo",
+      "saved": "Trabajo guardado.",
+      "errors": {
+        "dateOrder": "La fecha de fin debe ser el mismo día o posterior a la fecha de inicio.",
+        "save": "No se pudo guardar el trabajo.",
+        "missingClient": "No se encontró el registro del cliente vinculado.",
+        "createInvoice": "No se pudo crear la factura.",
+        "archive": "No se pudo archivar el trabajo.",
+        "restore": "No se pudo restaurar el trabajo."
+      }
+    },
+    "images": {
+      "eyebrow": "Fotos del trabajo",
+      "title": "Almacenamiento privado de imágenes",
+      "count": "{{count}}/10 imágenes",
+      "saveFirst": {
+        "title": "Guarda el trabajo primero",
+        "body": "Las fotos se almacenan contra un registro de trabajo existente."
+      },
+      "uploadLabel": "Subir foto",
+      "thumbnailAlt": "Miniatura de la foto del trabajo",
+      "preview": "Vista previa",
+      "sizeLabel": "{{size}} KB (miniatura + vista)",
+      "confirmDelete": "¿Eliminar esta foto?",
+      "empty": {
+        "title": "Todavía no hay fotos del trabajo",
+        "body": "Sube una foto para generar versiones seguras de miniatura y visualización."
+      },
+      "errors": {
+        "upload": "No se pudo subir la foto.",
+        "open": "No se pudo abrir la foto.",
+        "delete": "No se pudo eliminar la foto."
+      }
+    }
+  },
+  "pdf": {
+    "invoiceNumber": "Factura #",
+    "jobDates": "Fechas del trabajo",
+    "billTo": "Cobrar a",
+    "unitShort": "Unidad",
+    "qtyShort": "Cant.",
+    "rateShort": "Tarifa",
+    "amountShort": "Importe",
+    "errors": {
+      "missingProfileIssue": "Agrega el perfil de tu negocio en Configuración antes de emitir facturas.",
+      "missingProfileDownload": "Agrega el perfil de tu negocio en Configuración antes de generar facturas."
+    }
+  }
+}

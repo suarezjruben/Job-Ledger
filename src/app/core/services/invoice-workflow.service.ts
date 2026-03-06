@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { BusinessProfile, ClientRecord, InvoiceRecord, JobRecord } from '../models';
+import { AppI18nService } from './app-i18n.service';
 import { BusinessProfileRepository } from './business-profile.repository';
 import { InvoicePdfService } from './invoice-pdf.service';
 import { InvoicesRepository } from './invoices.repository';
@@ -8,6 +9,7 @@ import { JobsRepository } from './jobs.repository';
 
 @Injectable({ providedIn: 'root' })
 export class InvoiceWorkflowService {
+  private readonly i18n = inject(AppI18nService);
   private readonly businessProfiles = inject(BusinessProfileRepository);
   private readonly invoices = inject(InvoicesRepository);
   private readonly jobs = inject(JobsRepository);
@@ -32,7 +34,7 @@ export class InvoiceWorkflowService {
       profile ?? (await firstValueFrom(this.businessProfiles.observeProfile()));
 
     if (!businessProfile) {
-      throw new Error('Add your business profile in Settings before issuing invoices.');
+      throw new Error(this.i18n.instant('pdf.errors.missingProfileIssue'));
     }
 
     const pdfBlob = this.pdf.buildInvoicePdf(invoice, businessProfile);
@@ -52,7 +54,7 @@ export class InvoiceWorkflowService {
       profile ?? (await firstValueFrom(this.businessProfiles.observeProfile()));
 
     if (!businessProfile) {
-      throw new Error('Add your business profile in Settings before generating invoices.');
+      throw new Error(this.i18n.instant('pdf.errors.missingProfileDownload'));
     }
 
     const pdfBlob = this.pdf.buildInvoicePdf(invoice, businessProfile);
