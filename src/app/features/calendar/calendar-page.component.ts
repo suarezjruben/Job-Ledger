@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  inject,
+  signal,
+  viewChild
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -26,7 +36,7 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid">
-      <article class="panel stack-lg">
+      <article class="panel stack-lg calendar-panel">
         <div class="page-header">
           <div>
             <p class="eyebrow">{{ 'calendar.eyebrow' | translate }}</p>
@@ -53,23 +63,24 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
           <span class="status-dot canceled"></span> {{ 'jobStatus.canceled' | translate }}
         </div>
 
-        <div class="calendar-grid">
-          @for (label of weekdayLabels(); track label) {
-            <div class="calendar-heading">{{ label }}</div>
+        <div class="calendar-grid" #calendarGrid>
+          @if (showWeekdayHeadings()) {
+            @for (label of weekdayLabels(); track label) {
+              <div class="calendar-heading">{{ label }}</div>
+            }
           }
 
           @for (cell of calendarCells(); track cell.isoDate) {
-            <button
-              type="button"
+            <article
               class="calendar-cell"
               [class.outside-month]="!cell.inMonth"
               [class.today]="cell.isToday"
-              (click)="createJobForDate(cell.isoDate)"
             >
               <span class="calendar-day">{{ cell.dayNumber }}</span>
 
               @for (job of cell.jobs; track job.id) {
-                <span
+                <button
+                  type="button"
                   class="calendar-job"
                   [class.scheduled]="job.status === 'scheduled' || job.status === 'in_progress'"
                   [class.completed]="job.status === 'completed'"
@@ -78,13 +89,27 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
                   (click)="selectJob(job, $event)"
                 >
                   {{ job.title }}
-                </span>
+                </button>
               }
 
               @if (cell.moreJobs > 0) {
                 <span class="calendar-more">+{{ cell.moreJobs }} more</span>
               }
-            </button>
+
+              <div class="calendar-cell-actions">
+                <button
+                  type="button"
+                  class="calendar-new-job"
+                  (click)="createJobForDate(cell.isoDate)"
+                  [attr.aria-label]="'shell.newJob' | translate"
+                  [title]="'shell.newJob' | translate"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="newJobIcon"></path>
+                  </svg>
+                </button>
+              </div>
+            </article>
           }
         </div>
 
@@ -93,65 +118,84 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         }
       </article>
 
-      <aside class="panel stack-lg sticky-panel">
-        @if (selectedJob(); as job) {
-          <div class="page-header">
-            <div>
-              <p class="eyebrow">{{ 'calendar.selected.eyebrow' | translate }}</p>
-              <h2>{{ job.title }}</h2>
+      @if (!showSelectedJobDialog()) {
+        <aside class="panel stack-lg sticky-panel">
+          @if (selectedJob(); as job) {
+            <ng-container *ngTemplateOutlet="selectedJobDetails; context: { $implicit: job }"></ng-container>
+          } @else {
+            <div class="empty-state">
+              <p class="eyebrow">{{ 'calendar.empty.eyebrow' | translate }}</p>
+              <h2>{{ 'calendar.empty.title' | translate }}</h2>
+              <p>{{ 'calendar.empty.body' | translate }}</p>
             </div>
-            <button type="button" class="secondary-button" (click)="selectedJobId.set(null)">
-              {{ 'common.close' | translate }}
-            </button>
-          </div>
-
-          <dl class="detail-list">
-            <div>
-              <dt>{{ 'common.client' | translate }}</dt>
-              <dd>{{ clientName(job.clientId) }}</dd>
-            </div>
-            <div>
-              <dt>{{ 'common.dates' | translate }}</dt>
-              <dd>{{ formatDate(job) }}</dd>
-            </div>
-            <div>
-              <dt>{{ 'common.status' | translate }}</dt>
-              <dd class="status-text">{{ ('jobStatus.' + job.status) | translate }}</dd>
-            </div>
-            <div>
-              <dt>{{ 'common.subtotal' | translate }}</dt>
-              <dd>{{ subtotal(job) }}</dd>
-            </div>
-          </dl>
-
-          @if (job.description) {
-            <p class="note-block">{{ job.description }}</p>
           }
-
-          <div class="actions wrap">
-            <a class="primary-button" [routerLink]="['/jobs', job.id]">
-              {{ 'calendar.selected.editJob' | translate }}
-            </a>
-
-            @if (job.invoiceId) {
-              <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
-                {{ 'calendar.selected.viewInvoice' | translate }}
-              </a>
-            } @else if (canCreateInvoice(job)) {
-              <button type="button" class="secondary-button" (click)="createInvoice(job)">
-                {{ 'calendar.selected.createInvoice' | translate }}
-              </button>
-            }
-          </div>
-        } @else {
-          <div class="empty-state">
-            <p class="eyebrow">{{ 'calendar.empty.eyebrow' | translate }}</p>
-            <h2>{{ 'calendar.empty.title' | translate }}</h2>
-            <p>{{ 'calendar.empty.body' | translate }}</p>
-          </div>
-        }
-      </aside>
+        </aside>
+      }
     </section>
+
+    <ng-template #selectedJobDetails let-job>
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">{{ 'calendar.selected.eyebrow' | translate }}</p>
+          <h2>{{ job.title }}</h2>
+        </div>
+        <button type="button" class="secondary-button" (click)="closeSelectedJob()">
+          {{ 'common.close' | translate }}
+        </button>
+      </div>
+
+      <dl class="detail-list">
+        <div>
+          <dt>{{ 'common.client' | translate }}</dt>
+          <dd>{{ clientName(job.clientId) }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'common.dates' | translate }}</dt>
+          <dd>{{ formatDate(job) }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'common.status' | translate }}</dt>
+          <dd class="status-text">{{ ('jobStatus.' + job.status) | translate }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'common.subtotal' | translate }}</dt>
+          <dd>{{ subtotal(job) }}</dd>
+        </div>
+      </dl>
+
+      @if (job.description) {
+        <p class="note-block">{{ job.description }}</p>
+      }
+
+      <div class="actions wrap">
+        <a class="primary-button" [routerLink]="['/jobs', job.id]">
+          {{ 'calendar.selected.editJob' | translate }}
+        </a>
+
+        @if (job.invoiceId) {
+          <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
+            {{ 'calendar.selected.viewInvoice' | translate }}
+          </a>
+        } @else if (canCreateInvoice(job)) {
+          <button type="button" class="secondary-button" (click)="createInvoice(job)">
+            {{ 'calendar.selected.createInvoice' | translate }}
+          </button>
+        }
+      </div>
+    </ng-template>
+
+    @if (showSelectedJobDialog() && selectedJob(); as job) {
+      <button
+        type="button"
+        class="calendar-dialog-backdrop"
+        (click)="closeSelectedJob()"
+        [attr.aria-label]="'common.close' | translate"
+      ></button>
+
+      <section class="panel stack-lg calendar-dialog" role="dialog" aria-modal="true" [attr.aria-label]="job.title">
+        <ng-container *ngTemplateOutlet="selectedJobDetails; context: { $implicit: job }"></ng-container>
+      </section>
+    }
   `,
   styles: [
     `
@@ -161,6 +205,10 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         flex-wrap: wrap;
         color: var(--text-muted);
         font-size: 0.92rem;
+      }
+
+      .calendar-panel {
+        container-type: inline-size;
       }
 
       .calendar-grid {
@@ -182,12 +230,12 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         border-radius: 1rem;
         border: 1px solid var(--ghost-border);
         background: var(--surface-soft);
-        padding: 0.9rem;
+        padding: 0;
         display: flex;
         flex-direction: column;
         gap: 0.4rem;
         text-align: left;
-        cursor: pointer;
+        align-items: stretch;
       }
 
       .calendar-cell.today {
@@ -200,6 +248,7 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
 
       .calendar-day {
         font-weight: 700;
+        padding: 0 8px;
       }
 
       .calendar-job {
@@ -207,6 +256,10 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         border-radius: 0.7rem;
         font-size: 0.84rem;
         line-height: 1.25;
+        border: 0;
+        text-align: left;
+        color: inherit;
+        cursor: pointer;
       }
 
       .calendar-job.scheduled {
@@ -230,9 +283,89 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         color: var(--text-muted);
       }
 
+      .calendar-cell-actions {
+        margin-top: auto;
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 0.4rem;
+      }
+
+      .calendar-new-job {
+        width: 1.5rem;
+        height: 1.5rem;
+        margin: 4px;
+        border-radius: 999px;
+        border: 1px solid rgba(251, 191, 36, 0.36);
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.96) 0%, rgba(245, 158, 11, 0.96) 100%);
+        color: #241400;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0.8rem 1.8rem rgba(15, 23, 42, 0.18);
+        cursor: pointer;
+      }
+
+      .calendar-new-job svg {
+        width: 1rem;
+        height: 1rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
       .sticky-panel {
         position: sticky;
         top: 1.5rem;
+      }
+
+      @container (max-width: 64rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 55rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 46rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 37rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 28rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .calendar-dialog-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 70;
+        border: 0;
+        background: rgba(2, 6, 23, 0.56);
+      }
+
+      .calendar-dialog {
+        position: fixed;
+        inset: 1rem;
+        z-index: 71;
+        max-width: 34rem;
+        max-height: calc(100vh - 2rem);
+        margin: 0 auto;
+        overflow: auto;
       }
 
       @media (max-width: 980px) {
@@ -242,7 +375,7 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
 
         .calendar-cell {
           min-height: 7rem;
-          padding: 0.7rem;
+          padding: 0;
         }
 
         .sticky-panel {
@@ -251,24 +384,28 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
       }
 
       @media (max-width: 720px) {
-        .calendar-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+        .calendar-dialog {
+          inset: 0.75rem;
+          max-height: calc(100vh - 1.5rem);
         }
       }
     `
   ]
 })
 export class CalendarPageComponent {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly jobsRepository = inject(JobsRepository);
   private readonly invoiceWorkflow = inject(InvoiceWorkflowService);
   private readonly i18n = inject(AppI18nService);
+  private readonly calendarGridRef = viewChild<ElementRef<HTMLElement>>('calendarGrid');
 
   readonly visibleMonth = signal(startOfMonth(new Date()));
   readonly selectedJobId = signal<string | null>(null);
   readonly busy = signal(false);
   readonly error = signal('');
+  readonly calendarColumnCount = signal(7);
 
   readonly jobs = toSignal(this.jobsRepository.observeJobs(), { initialValue: [] as JobRecord[] });
   readonly clients = toSignal(this.clientsRepository.observeClients(), { initialValue: [] as ClientRecord[] });
@@ -278,6 +415,9 @@ export class CalendarPageComponent {
   );
 
   readonly weekdayLabels = computed(() => buildWeekdayLabels(this.i18n.currentLocale()));
+  readonly showWeekdayHeadings = computed(() => this.calendarColumnCount() >= 7);
+  readonly showSelectedJobDialog = computed(() => this.calendarColumnCount() <= 2);
+  readonly newJobIcon = 'M12 5v14M5 12h14';
 
   readonly monthTitle = computed(() => monthLabel(this.visibleMonth(), this.i18n.currentLocale()));
 
@@ -301,6 +441,27 @@ export class CalendarPageComponent {
     });
   });
 
+  constructor() {
+    afterNextRender(() => {
+      const grid = this.calendarGridRef()?.nativeElement;
+
+      if (!grid || typeof ResizeObserver === 'undefined') {
+        return;
+      }
+
+      const updateColumnCount = () => {
+        this.calendarColumnCount.set(this.readGridColumnCount(grid));
+      };
+
+      updateColumnCount();
+
+      const observer = new ResizeObserver(() => updateColumnCount());
+      observer.observe(grid);
+
+      this.destroyRef.onDestroy(() => observer.disconnect());
+    });
+  }
+
   shiftMonth(delta: number): void {
     this.visibleMonth.set(addMonths(this.visibleMonth(), delta));
   }
@@ -318,6 +479,10 @@ export class CalendarPageComponent {
   selectJob(job: JobRecord, event: Event): void {
     event.stopPropagation();
     this.selectedJobId.set(job.id);
+  }
+
+  closeSelectedJob(): void {
+    this.selectedJobId.set(null);
   }
 
   clientName(clientId: string): string {
@@ -358,5 +523,19 @@ export class CalendarPageComponent {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  private readGridColumnCount(grid: HTMLElement): number {
+    if (typeof window === 'undefined') {
+      return 7;
+    }
+
+    const columns = window.getComputedStyle(grid).gridTemplateColumns;
+
+    if (!columns || columns === 'none') {
+      return 1;
+    }
+
+    return columns.trim().split(/\s+/).length;
   }
 }

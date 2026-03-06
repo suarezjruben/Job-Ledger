@@ -39,7 +39,13 @@
     "signedIn": "Sesión iniciada",
     "signOut": "Cerrar sesión",
     "pageTitle": "Mantén trabajos, facturas e historial en un solo lugar.",
-    "newJob": "Nuevo trabajo"
+    "newJob": "Nuevo trabajo",
+    "openNavigation": "Abrir navegación",
+    "closeNavigation": "Cerrar navegación",
+    "collapseNavigation": "Contraer navegación",
+    "expandNavigation": "Expandir navegación",
+    "closeOverlays": "Cerrar menús abiertos",
+    "moreActions": "Más acciones"
   },
   "preferences": {
     "language": {
