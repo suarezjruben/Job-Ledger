@@ -43,7 +43,11 @@
   },
   "preferences": {
     "language": {
-      "label": "Language"
+      "label": "Language",
+      "options": {
+        "en": "English",
+        "es": "Spanish"
+      }
     },
     "theme": {
       "label": "Theme",

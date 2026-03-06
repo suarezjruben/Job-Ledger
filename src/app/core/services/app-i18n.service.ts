@@ -2,10 +2,7 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 
-export const APP_LANGUAGES = [
-  { code: 'en', label: 'English', nativeLabel: 'English' },
-  { code: 'es', label: 'Spanish', nativeLabel: 'Español' }
-] as const;
+export const APP_LANGUAGES = [{ code: 'en' }, { code: 'es' }] as const;
 
 export type AppLanguage = (typeof APP_LANGUAGES)[number]['code'];
 

@@ -23,7 +23,9 @@ import { SessionService } from '../../core/services/session.service';
             <span>{{ 'preferences.language.label' | translate }}</span>
             <select [value]="i18n.language()" (change)="setLanguage(($any($event.target)).value)">
               @for (language of i18n.languages; track language.code) {
-                <option [value]="language.code">{{ language.nativeLabel }}</option>
+                <option [value]="language.code" [selected]="i18n.language() === language.code">
+                  {{ ('preferences.language.options.' + language.code) | translate }}
+                </option>
               }
             </select>
           </label>
