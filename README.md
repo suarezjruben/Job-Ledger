@@ -22,7 +22,7 @@ Job photos are stored as private Cloudflare R2 objects with short-lived signed U
    - Example: `job-ledger-images`
 2. Create API token:
    - `R2` -> `Manage R2 API Tokens`
-   - Permissions: `Object Read`, `Object Write`
+   - Permissions: `Object Read & Write`
 3. Save these values:
    - `R2_ACCOUNT_ID`
    - `R2_ACCESS_KEY_ID`
