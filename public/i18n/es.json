@@ -70,6 +70,7 @@
     "next": "Siguiente",
     "close": "Cerrar",
     "client": "Cliente",
+    "address": "Direccion",
     "job": "Trabajo",
     "dates": "Fechas",
     "status": "Estado",
@@ -171,7 +172,15 @@
       "eyebrow": "Trabajo seleccionado",
       "editJob": "Editar trabajo",
       "viewInvoice": "Ver factura",
-      "createInvoice": "Crear factura"
+      "createInvoice": "Crear factura",
+      "sections": {
+        "invoiceEyebrow": "Factura generada",
+        "invoiceTitle": "Detalles de factura",
+        "invoiceEmptyTitle": "Todavia no hay factura generada",
+        "invoiceEmptyReady": "Este trabajo esta listo para su primera factura.",
+        "invoiceEmptyPending": "Completa el trabajo antes de generar una factura.",
+        "invoiceCreated": "Se creo el borrador de la factura."
+      }
     },
     "empty": {
       "eyebrow": "Panel de detalle",

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT, Location } from '@angular/common';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -27,246 +27,263 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
   imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="page-grid">
-      <article class="panel stack-lg">
-        <div class="page-header">
-          <div>
-            <p class="eyebrow">{{ 'jobs.form.eyebrow' | translate }}</p>
-            <h2>{{ isEdit() ? ('jobs.form.editTitle' | translate) : ('jobs.form.createTitle' | translate) }}</h2>
-          </div>
+    <section class="route-modal-page">
+      <button
+        type="button"
+        class="route-modal-backdrop"
+        (click)="close()"
+        [attr.aria-label]="'common.close' | translate"
+      ></button>
 
-          @if (isEdit() && currentJob()) {
-            <div class="actions wrap">
-              @if (currentJob()!.invoiceId) {
-                <a class="secondary-button" [routerLink]="['/invoices', currentJob()!.invoiceId]">
-                  {{ 'jobs.form.viewInvoice' | translate }}
-                </a>
-              } @else if (canCreateInvoice()) {
-                <button type="button" class="secondary-button" (click)="createInvoice()">
-                  {{ 'jobs.form.createInvoice' | translate }}
-                </button>
-              }
+      <div class="route-modal-shell">
+        <section class="page-grid">
+          <article class="panel stack-lg">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">{{ 'jobs.form.eyebrow' | translate }}</p>
+                <h2>{{ isEdit() ? ('jobs.form.editTitle' | translate) : ('jobs.form.createTitle' | translate) }}</h2>
+              </div>
 
-              @if (currentJob()!.archivedAt) {
-                <button type="button" class="ghost-button" (click)="restoreJob()">
-                  {{ 'common.restore' | translate }}
-                </button>
-              } @else {
-                <button type="button" class="ghost-button" (click)="archiveJob()">
-                  {{ 'common.archive' | translate }}
-                </button>
-              }
-            </div>
-          }
-        </div>
-
-        <form class="stack-lg" [formGroup]="form" (ngSubmit)="save()">
-          <div class="grid-two">
-            <label class="field">
-              <span>{{ 'common.client' | translate }}</span>
-              <select formControlName="clientId">
-                <option value="">{{ 'jobs.form.selectClient' | translate }}</option>
-                @for (client of activeClients(); track client.id) {
-                  <option [value]="client.id">{{ client.displayName }}</option>
-                }
-              </select>
-            </label>
-
-            <label class="field">
-              <span>{{ 'jobs.form.fields.title' | translate }}</span>
-              <input type="text" formControlName="title" />
-            </label>
-          </div>
-
-          <div class="grid-three">
-            <label class="field">
-              <span>{{ 'jobs.form.fields.startDate' | translate }}</span>
-              <input type="date" formControlName="startDate" />
-            </label>
-            <label class="field">
-              <span>{{ 'jobs.form.fields.endDate' | translate }}</span>
-              <input type="date" formControlName="endDate" />
-            </label>
-            <label class="field">
-              <span>{{ 'common.status' | translate }}</span>
-              <select formControlName="status">
-                @for (status of editableStatuses; track status) {
-                  <option [value]="status">{{ ('jobStatus.' + status) | translate }}</option>
-                }
-              </select>
-            </label>
-          </div>
-
-          <div class="grid-two">
-            <label class="field">
-              <span>{{ 'jobs.form.fields.line1' | translate }}</span>
-              <input type="text" formControlName="line1" />
-            </label>
-            <label class="field">
-              <span>{{ 'jobs.form.fields.line2' | translate }}</span>
-              <input type="text" formControlName="line2" />
-            </label>
-          </div>
-
-          <div class="grid-three">
-            <label class="field">
-              <span>{{ 'jobs.form.fields.city' | translate }}</span>
-              <input type="text" formControlName="city" />
-            </label>
-            <label class="field">
-              <span>{{ 'jobs.form.fields.state' | translate }}</span>
-              <input type="text" formControlName="state" />
-            </label>
-            <label class="field">
-              <span>{{ 'jobs.form.fields.postalCode' | translate }}</span>
-              <input type="text" formControlName="postalCode" />
-            </label>
-          </div>
-
-          <label class="field">
-            <span>{{ 'common.description' | translate }}</span>
-            <textarea rows="3" formControlName="description"></textarea>
-          </label>
-
-          <label class="field">
-            <span>{{ 'jobs.form.fields.notes' | translate }}</span>
-            <textarea rows="3" formControlName="notes"></textarea>
-          </label>
-
-          <div class="stack-md">
-            <div class="section-heading">
-              <h3>{{ 'jobs.form.lineItems.title' | translate }}</h3>
-              <button type="button" class="secondary-button" (click)="addLineItem()">
-                {{ 'jobs.form.lineItems.add' | translate }}
-              </button>
-            </div>
-
-            <div class="stack-md" formArrayName="lineItems">
-              @for (lineItem of lineItems.controls; track lineItem; let i = $index) {
-                <div class="line-item-grid" [formGroupName]="i">
-                  <label class="field">
-                    <span>{{ 'common.description' | translate }}</span>
-                    <input type="text" formControlName="description" />
-                  </label>
-
-                  <label class="field">
-                    <span>{{ 'common.kind' | translate }}</span>
-                    <select formControlName="kind">
-                      <option value="labor">{{ 'lineItemKinds.labor' | translate }}</option>
-                      <option value="material">{{ 'lineItemKinds.material' | translate }}</option>
-                      <option value="custom">{{ 'lineItemKinds.custom' | translate }}</option>
-                    </select>
-                  </label>
-
-                  <label class="field">
-                    <span>{{ 'common.unitLabel' | translate }}</span>
-                    <input type="text" formControlName="unitLabel" />
-                  </label>
-
-                  <label class="field">
-                    <span>{{ 'common.quantity' | translate }}</span>
-                    <input type="number" min="0" step="0.25" formControlName="quantity" />
-                  </label>
-
-                  <label class="field">
-                    <span>{{ 'common.rateCents' | translate }}</span>
-                    <input type="number" min="0" step="1" formControlName="unitPriceCents" />
-                  </label>
-
-                  <div class="line-item-total">
-                    <strong>{{ lineTotal(i) }}</strong>
-                    <button type="button" class="ghost-button" (click)="removeLineItem(i)">
-                      {{ 'common.remove' | translate }}
+              <div class="actions wrap">
+                @if (isEdit() && currentJob()) {
+                  @if (currentJob()!.invoiceId) {
+                    <a class="secondary-button" [routerLink]="['/invoices', currentJob()!.invoiceId]">
+                      {{ 'jobs.form.viewInvoice' | translate }}
+                    </a>
+                  } @else if (canCreateInvoice()) {
+                    <button type="button" class="secondary-button" (click)="createInvoice()">
+                      {{ 'jobs.form.createInvoice' | translate }}
                     </button>
-                  </div>
-                </div>
-              }
-            </div>
+                  }
 
-            <div class="summary-row">
-              <span>{{ 'common.subtotal' | translate }}</span>
-              <strong>{{ subtotal() }}</strong>
-            </div>
-          </div>
-
-          @if (message()) {
-            <p class="success-text">{{ message() }}</p>
-          }
-
-          @if (error()) {
-            <p class="error-text">{{ error() }}</p>
-          }
-
-          <div class="actions wrap">
-            <button type="submit" class="primary-button" [disabled]="saving()">
-              {{
-                saving()
-                  ? ('common.saving' | translate)
-                  : isEdit()
-                    ? ('jobs.form.save' | translate)
-                    : ('jobs.form.create' | translate)
-              }}
-            </button>
-            <a class="ghost-button" routerLink="/calendar">{{ 'common.cancel' | translate }}</a>
-          </div>
-        </form>
-      </article>
-
-      <aside class="panel stack-lg">
-        <div class="page-header">
-          <div>
-            <p class="eyebrow">{{ 'jobs.images.eyebrow' | translate }}</p>
-            <h2>{{ 'jobs.images.title' | translate }}</h2>
-          </div>
-          <span class="page-note">{{ 'jobs.images.count' | translate:{ count: images().length } }}</span>
-        </div>
-
-        @if (!isEdit()) {
-          <div class="empty-state compact">
-            <h3>{{ 'jobs.images.saveFirst.title' | translate }}</h3>
-            <p>{{ 'jobs.images.saveFirst.body' | translate }}</p>
-          </div>
-        } @else {
-          <label class="field">
-            <span>{{ 'jobs.images.uploadLabel' | translate }}</span>
-            <input type="file" accept="image/*" (change)="uploadImage($event)" />
-          </label>
-
-          <div class="stack-sm">
-            @for (image of images(); track image.id) {
-              <article class="image-row">
-                @if (thumbUrls()[image.id]; as thumbUrl) {
-                  <img
-                    class="image-thumb"
-                    [src]="thumbUrl"
-                    [alt]="'jobs.images.thumbnailAlt' | translate"
-                    loading="lazy"
-                  />
-                } @else {
-                  <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
+                  @if (currentJob()!.archivedAt) {
+                    <button type="button" class="ghost-button" (click)="restoreJob()">
+                      {{ 'common.restore' | translate }}
+                    </button>
+                  } @else {
+                    <button type="button" class="ghost-button" (click)="archiveJob()">
+                      {{ 'common.archive' | translate }}
+                    </button>
+                  }
                 }
-                <div>
-                  <strong>{{ image.width }} x {{ image.height }}</strong>
-                  <p>{{ imageSizeLabel(image) }}</p>
-                </div>
-                <div class="actions wrap">
-                  <button type="button" class="secondary-button" (click)="openImage(image)">
-                    {{ 'common.open' | translate }}
+
+                <button type="button" class="ghost-button" (click)="close()">
+                  {{ 'common.close' | translate }}
+                </button>
+              </div>
+            </div>
+
+            <form class="stack-lg" [formGroup]="form" (ngSubmit)="save()">
+              <div class="grid-two">
+                <label class="field">
+                  <span>{{ 'common.client' | translate }}</span>
+                  <select formControlName="clientId">
+                    <option value="">{{ 'jobs.form.selectClient' | translate }}</option>
+                    @for (client of activeClients(); track client.id) {
+                      <option [value]="client.id">{{ client.displayName }}</option>
+                    }
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>{{ 'jobs.form.fields.title' | translate }}</span>
+                  <input type="text" formControlName="title" />
+                </label>
+              </div>
+
+              <div class="grid-three">
+                <label class="field">
+                  <span>{{ 'jobs.form.fields.startDate' | translate }}</span>
+                  <input type="date" formControlName="startDate" />
+                </label>
+                <label class="field">
+                  <span>{{ 'jobs.form.fields.endDate' | translate }}</span>
+                  <input type="date" formControlName="endDate" />
+                </label>
+                <label class="field">
+                  <span>{{ 'common.status' | translate }}</span>
+                  <select formControlName="status">
+                    @for (status of editableStatuses; track status) {
+                      <option [value]="status">{{ ('jobStatus.' + status) | translate }}</option>
+                    }
+                  </select>
+                </label>
+              </div>
+
+              <div class="grid-two">
+                <label class="field">
+                  <span>{{ 'jobs.form.fields.line1' | translate }}</span>
+                  <input type="text" formControlName="line1" />
+                </label>
+                <label class="field">
+                  <span>{{ 'jobs.form.fields.line2' | translate }}</span>
+                  <input type="text" formControlName="line2" />
+                </label>
+              </div>
+
+              <div class="grid-three">
+                <label class="field">
+                  <span>{{ 'jobs.form.fields.city' | translate }}</span>
+                  <input type="text" formControlName="city" />
+                </label>
+                <label class="field">
+                  <span>{{ 'jobs.form.fields.state' | translate }}</span>
+                  <input type="text" formControlName="state" />
+                </label>
+                <label class="field">
+                  <span>{{ 'jobs.form.fields.postalCode' | translate }}</span>
+                  <input type="text" formControlName="postalCode" />
+                </label>
+              </div>
+
+              <label class="field">
+                <span>{{ 'common.description' | translate }}</span>
+                <textarea rows="3" formControlName="description"></textarea>
+              </label>
+
+              <label class="field">
+                <span>{{ 'jobs.form.fields.notes' | translate }}</span>
+                <textarea rows="3" formControlName="notes"></textarea>
+              </label>
+
+              <div class="stack-md">
+                <div class="section-heading">
+                  <h3>{{ 'jobs.form.lineItems.title' | translate }}</h3>
+                  <button type="button" class="secondary-button" (click)="addLineItem()">
+                    {{ 'jobs.form.lineItems.add' | translate }}
                   </button>
-                  <button type="button" class="ghost-button" (click)="deleteImage(image)">
-                    {{ 'common.delete' | translate }}
-                  </button>
                 </div>
-              </article>
-            } @empty {
+
+                <div class="stack-md" formArrayName="lineItems">
+                  @for (lineItem of lineItems.controls; track lineItem; let i = $index) {
+                    <div class="line-item-grid" [formGroupName]="i">
+                      <label class="field">
+                        <span>{{ 'common.description' | translate }}</span>
+                        <input type="text" formControlName="description" />
+                      </label>
+
+                      <label class="field">
+                        <span>{{ 'common.kind' | translate }}</span>
+                        <select formControlName="kind">
+                          <option value="labor">{{ 'lineItemKinds.labor' | translate }}</option>
+                          <option value="material">{{ 'lineItemKinds.material' | translate }}</option>
+                          <option value="custom">{{ 'lineItemKinds.custom' | translate }}</option>
+                        </select>
+                      </label>
+
+                      <label class="field">
+                        <span>{{ 'common.unitLabel' | translate }}</span>
+                        <input type="text" formControlName="unitLabel" />
+                      </label>
+
+                      <label class="field">
+                        <span>{{ 'common.quantity' | translate }}</span>
+                        <input type="number" min="0" step="0.25" formControlName="quantity" />
+                      </label>
+
+                      <label class="field">
+                        <span>{{ 'common.rateCents' | translate }}</span>
+                        <input type="number" min="0" step="1" formControlName="unitPriceCents" />
+                      </label>
+
+                      <div class="line-item-total">
+                        <strong>{{ lineTotal(i) }}</strong>
+                        <button type="button" class="ghost-button" (click)="removeLineItem(i)">
+                          {{ 'common.remove' | translate }}
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <div class="summary-row">
+                  <span>{{ 'common.subtotal' | translate }}</span>
+                  <strong>{{ subtotal() }}</strong>
+                </div>
+              </div>
+
+              @if (message()) {
+                <p class="success-text">{{ message() }}</p>
+              }
+
+              @if (error()) {
+                <p class="error-text">{{ error() }}</p>
+              }
+
+              <div class="actions wrap">
+                <button type="submit" class="primary-button" [disabled]="saving()">
+                  {{
+                    saving()
+                      ? ('common.saving' | translate)
+                      : isEdit()
+                        ? ('jobs.form.save' | translate)
+                        : ('jobs.form.create' | translate)
+                  }}
+                </button>
+                <button type="button" class="ghost-button" (click)="close()">
+                  {{ 'common.cancel' | translate }}
+                </button>
+              </div>
+            </form>
+          </article>
+
+          <aside class="panel stack-lg">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">{{ 'jobs.images.eyebrow' | translate }}</p>
+                <h2>{{ 'jobs.images.title' | translate }}</h2>
+              </div>
+              <span class="page-note">{{ 'jobs.images.count' | translate:{ count: images().length } }}</span>
+            </div>
+
+            @if (!isEdit()) {
               <div class="empty-state compact">
-                <h3>{{ 'jobs.images.empty.title' | translate }}</h3>
-                <p>{{ 'jobs.images.empty.body' | translate }}</p>
+                <h3>{{ 'jobs.images.saveFirst.title' | translate }}</h3>
+                <p>{{ 'jobs.images.saveFirst.body' | translate }}</p>
+              </div>
+            } @else {
+              <label class="field">
+                <span>{{ 'jobs.images.uploadLabel' | translate }}</span>
+                <input type="file" accept="image/*" (change)="uploadImage($event)" />
+              </label>
+
+              <div class="stack-sm">
+                @for (image of images(); track image.id) {
+                  <article class="image-row">
+                    @if (thumbUrls()[image.id]; as thumbUrl) {
+                      <img
+                        class="image-thumb"
+                        [src]="thumbUrl"
+                        [alt]="'jobs.images.thumbnailAlt' | translate"
+                        loading="lazy"
+                      />
+                    } @else {
+                      <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
+                    }
+                    <div>
+                      <strong>{{ image.width }} x {{ image.height }}</strong>
+                      <p>{{ imageSizeLabel(image) }}</p>
+                    </div>
+                    <div class="actions wrap">
+                      <button type="button" class="secondary-button" (click)="openImage(image)">
+                        {{ 'common.open' | translate }}
+                      </button>
+                      <button type="button" class="ghost-button" (click)="deleteImage(image)">
+                        {{ 'common.delete' | translate }}
+                      </button>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state compact">
+                    <h3>{{ 'jobs.images.empty.title' | translate }}</h3>
+                    <p>{{ 'jobs.images.empty.body' | translate }}</p>
+                  </div>
+                }
               </div>
             }
-          </div>
-        }
-      </aside>
+          </aside>
+        </section>
+      </div>
     </section>
   `,
   styles: [
@@ -337,6 +354,8 @@ export class JobFormPageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
+  private readonly document = inject(DOCUMENT);
   private readonly jobsRepository = inject(JobsRepository);
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly imagesRepository = inject(JobImagesRepository);
@@ -574,7 +593,7 @@ export class JobFormPageComponent {
         this.message.set(this.i18n.instant('jobs.form.saved'));
       } else {
         const jobId = await this.jobsRepository.createJob(payload);
-        await this.router.navigate(['/jobs', jobId]);
+        await this.router.navigate(['/jobs', jobId], { replaceUrl: true });
         return;
       }
     } catch (error) {
@@ -693,6 +712,15 @@ export class JobFormPageComponent {
     }
   }
 
+  async close(): Promise<void> {
+    if (this.shouldUseHistoryBack()) {
+      this.location.back();
+      return;
+    }
+
+    await this.router.navigate(['/calendar']);
+  }
+
   private async loadThumb(jobId: string, imageId: string): Promise<void> {
     try {
       const thumbUrl = await this.imagesRepository.getImageDownloadUrl(jobId, imageId, 'thumb');
@@ -733,5 +761,9 @@ export class JobFormPageComponent {
         totalCents: calculateLineTotal(quantity, unitPriceCents)
       };
     });
+  }
+
+  private shouldUseHistoryBack(): boolean {
+    return (this.document.defaultView?.history.state?.navigationId ?? 0) > 1;
   }
 }

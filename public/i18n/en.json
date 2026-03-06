@@ -70,6 +70,7 @@
     "next": "Next",
     "close": "Close",
     "client": "Client",
+    "address": "Address",
     "job": "Job",
     "dates": "Dates",
     "status": "Status",
@@ -171,7 +172,15 @@
       "eyebrow": "Selected job",
       "editJob": "Edit job",
       "viewInvoice": "View invoice",
-      "createInvoice": "Create invoice"
+      "createInvoice": "Create invoice",
+      "sections": {
+        "invoiceEyebrow": "Generated invoice",
+        "invoiceTitle": "Invoice details",
+        "invoiceEmptyTitle": "No generated invoice yet",
+        "invoiceEmptyReady": "This job is ready for its first invoice.",
+        "invoiceEmptyPending": "Complete the job before generating an invoice.",
+        "invoiceCreated": "Invoice draft created."
+      }
     },
     "empty": {
       "eyebrow": "Detail drawer",

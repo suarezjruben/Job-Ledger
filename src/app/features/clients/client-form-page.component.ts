@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT, Location } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { map, of, switchMap } from 'rxjs';
@@ -13,117 +13,134 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
 @Component({
   selector: 'app-client-form-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe],
+  imports: [CommonModule, ReactiveFormsModule, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="page-grid single">
-      <article class="panel stack-lg">
-        <div class="page-header">
-          <div>
-            <p class="eyebrow">{{ 'clients.form.eyebrow' | translate }}</p>
-            <h2>{{ isEdit() ? ('clients.form.editTitle' | translate) : ('clients.form.createTitle' | translate) }}</h2>
-          </div>
-        </div>
+    <section class="route-modal-page">
+      <button
+        type="button"
+        class="route-modal-backdrop"
+        (click)="close()"
+        [attr.aria-label]="'common.close' | translate"
+      ></button>
 
-        <form class="stack-lg" [formGroup]="form" (ngSubmit)="save()">
-          <div class="grid-two">
-            <label class="field">
-              <span>{{ 'clients.form.fields.displayName' | translate }}</span>
-              <input type="text" formControlName="displayName" />
-            </label>
-            <label class="field">
-              <span>{{ 'clients.form.fields.companyName' | translate }}</span>
-              <input type="text" formControlName="companyName" />
-            </label>
-          </div>
+      <div class="route-modal-shell route-modal-shell--narrow">
+        <section class="page-grid single">
+          <article class="panel stack-lg">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">{{ 'clients.form.eyebrow' | translate }}</p>
+                <h2>{{ isEdit() ? ('clients.form.editTitle' | translate) : ('clients.form.createTitle' | translate) }}</h2>
+              </div>
 
-          <div class="grid-two">
-            <label class="field">
-              <span>{{ 'clients.form.fields.billingEmail' | translate }}</span>
-              <input type="email" formControlName="billingEmail" />
-            </label>
-            <label class="field">
-              <span>{{ 'clients.form.fields.phone' | translate }}</span>
-              <input type="tel" formControlName="phone" />
-            </label>
-          </div>
+              <button type="button" class="ghost-button" (click)="close()">
+                {{ 'common.close' | translate }}
+              </button>
+            </div>
 
-          <div class="grid-two">
-            <label class="field">
-              <span>{{ 'clients.form.fields.billingLine1' | translate }}</span>
-              <input type="text" formControlName="billingLine1" />
-            </label>
-            <label class="field">
-              <span>{{ 'clients.form.fields.billingLine2' | translate }}</span>
-              <input type="text" formControlName="billingLine2" />
-            </label>
-          </div>
+            <form class="stack-lg" [formGroup]="form" (ngSubmit)="save()">
+              <div class="grid-two">
+                <label class="field">
+                  <span>{{ 'clients.form.fields.displayName' | translate }}</span>
+                  <input type="text" formControlName="displayName" />
+                </label>
+                <label class="field">
+                  <span>{{ 'clients.form.fields.companyName' | translate }}</span>
+                  <input type="text" formControlName="companyName" />
+                </label>
+              </div>
 
-          <div class="grid-three">
-            <label class="field">
-              <span>{{ 'clients.form.fields.billingCity' | translate }}</span>
-              <input type="text" formControlName="billingCity" />
-            </label>
-            <label class="field">
-              <span>{{ 'clients.form.fields.billingState' | translate }}</span>
-              <input type="text" formControlName="billingState" />
-            </label>
-            <label class="field">
-              <span>{{ 'clients.form.fields.billingPostalCode' | translate }}</span>
-              <input type="text" formControlName="billingPostalCode" />
-            </label>
-          </div>
+              <div class="grid-two">
+                <label class="field">
+                  <span>{{ 'clients.form.fields.billingEmail' | translate }}</span>
+                  <input type="email" formControlName="billingEmail" />
+                </label>
+                <label class="field">
+                  <span>{{ 'clients.form.fields.phone' | translate }}</span>
+                  <input type="tel" formControlName="phone" />
+                </label>
+              </div>
 
-          <div class="grid-two">
-            <label class="field">
-              <span>{{ 'clients.form.fields.serviceLine1' | translate }}</span>
-              <input type="text" formControlName="serviceLine1" />
-            </label>
-            <label class="field">
-              <span>{{ 'clients.form.fields.serviceLine2' | translate }}</span>
-              <input type="text" formControlName="serviceLine2" />
-            </label>
-          </div>
+              <div class="grid-two">
+                <label class="field">
+                  <span>{{ 'clients.form.fields.billingLine1' | translate }}</span>
+                  <input type="text" formControlName="billingLine1" />
+                </label>
+                <label class="field">
+                  <span>{{ 'clients.form.fields.billingLine2' | translate }}</span>
+                  <input type="text" formControlName="billingLine2" />
+                </label>
+              </div>
 
-          <div class="grid-three">
-            <label class="field">
-              <span>{{ 'clients.form.fields.serviceCity' | translate }}</span>
-              <input type="text" formControlName="serviceCity" />
-            </label>
-            <label class="field">
-              <span>{{ 'clients.form.fields.serviceState' | translate }}</span>
-              <input type="text" formControlName="serviceState" />
-            </label>
-            <label class="field">
-              <span>{{ 'clients.form.fields.servicePostalCode' | translate }}</span>
-              <input type="text" formControlName="servicePostalCode" />
-            </label>
-          </div>
+              <div class="grid-three">
+                <label class="field">
+                  <span>{{ 'clients.form.fields.billingCity' | translate }}</span>
+                  <input type="text" formControlName="billingCity" />
+                </label>
+                <label class="field">
+                  <span>{{ 'clients.form.fields.billingState' | translate }}</span>
+                  <input type="text" formControlName="billingState" />
+                </label>
+                <label class="field">
+                  <span>{{ 'clients.form.fields.billingPostalCode' | translate }}</span>
+                  <input type="text" formControlName="billingPostalCode" />
+                </label>
+              </div>
 
-          <label class="field">
-            <span>{{ 'common.notes' | translate }}</span>
-            <textarea rows="4" formControlName="notes"></textarea>
-          </label>
+              <div class="grid-two">
+                <label class="field">
+                  <span>{{ 'clients.form.fields.serviceLine1' | translate }}</span>
+                  <input type="text" formControlName="serviceLine1" />
+                </label>
+                <label class="field">
+                  <span>{{ 'clients.form.fields.serviceLine2' | translate }}</span>
+                  <input type="text" formControlName="serviceLine2" />
+                </label>
+              </div>
 
-          @if (error()) {
-            <p class="error-text">{{ error() }}</p>
-          }
+              <div class="grid-three">
+                <label class="field">
+                  <span>{{ 'clients.form.fields.serviceCity' | translate }}</span>
+                  <input type="text" formControlName="serviceCity" />
+                </label>
+                <label class="field">
+                  <span>{{ 'clients.form.fields.serviceState' | translate }}</span>
+                  <input type="text" formControlName="serviceState" />
+                </label>
+                <label class="field">
+                  <span>{{ 'clients.form.fields.servicePostalCode' | translate }}</span>
+                  <input type="text" formControlName="servicePostalCode" />
+                </label>
+              </div>
 
-          <div class="actions wrap">
-            <button type="submit" class="primary-button" [disabled]="saving()">
-              {{
-                saving()
-                  ? ('common.saving' | translate)
-                  : isEdit()
-                    ? ('clients.form.saveChanges' | translate)
-                    : ('clients.form.createButton' | translate)
-              }}
-            </button>
+              <label class="field">
+                <span>{{ 'common.notes' | translate }}</span>
+                <textarea rows="4" formControlName="notes"></textarea>
+              </label>
 
-            <a class="ghost-button" routerLink="/clients">{{ 'common.cancel' | translate }}</a>
-          </div>
-        </form>
-      </article>
+              @if (error()) {
+                <p class="error-text">{{ error() }}</p>
+              }
+
+              <div class="actions wrap">
+                <button type="submit" class="primary-button" [disabled]="saving()">
+                  {{
+                    saving()
+                      ? ('common.saving' | translate)
+                      : isEdit()
+                        ? ('clients.form.saveChanges' | translate)
+                        : ('clients.form.createButton' | translate)
+                  }}
+                </button>
+
+                <button type="button" class="ghost-button" (click)="close()">
+                  {{ 'common.cancel' | translate }}
+                </button>
+              </div>
+            </form>
+          </article>
+        </section>
+      </div>
     </section>
   `
 })
@@ -131,6 +148,8 @@ export class ClientFormPageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
+  private readonly document = inject(DOCUMENT);
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly i18n = inject(AppI18nService);
 
@@ -239,7 +258,7 @@ export class ClientFormPageComponent {
         await this.clientsRepository.updateClient(this.clientId()!, payload);
       } else {
         const clientId = await this.clientsRepository.createClient(payload);
-        await this.router.navigate(['/clients', clientId]);
+        await this.router.navigate(['/clients', clientId], { replaceUrl: true });
         return;
       }
 
@@ -249,6 +268,15 @@ export class ClientFormPageComponent {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  async close(): Promise<void> {
+    if (this.shouldUseHistoryBack()) {
+      this.location.back();
+      return;
+    }
+
+    await this.router.navigate(['/clients']);
   }
 
   private buildAddress(
@@ -269,5 +297,9 @@ export class ClientFormPageComponent {
       state: state.trim(),
       postalCode: postalCode.trim()
     };
+  }
+
+  private shouldUseHistoryBack(): boolean {
+    return (this.document.defaultView?.history.state?.navigationId ?? 0) > 1;
   }
 }
