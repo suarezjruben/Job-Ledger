@@ -36,7 +36,7 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid">
-      <article class="panel stack-lg">
+      <article class="panel stack-lg calendar-panel">
         <div class="page-header">
           <div>
             <p class="eyebrow">{{ 'calendar.eyebrow' | translate }}</p>
@@ -118,65 +118,84 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         }
       </article>
 
-      <aside class="panel stack-lg sticky-panel">
-        @if (selectedJob(); as job) {
-          <div class="page-header">
-            <div>
-              <p class="eyebrow">{{ 'calendar.selected.eyebrow' | translate }}</p>
-              <h2>{{ job.title }}</h2>
+      @if (!showSelectedJobDialog()) {
+        <aside class="panel stack-lg sticky-panel">
+          @if (selectedJob(); as job) {
+            <ng-container *ngTemplateOutlet="selectedJobDetails; context: { $implicit: job }"></ng-container>
+          } @else {
+            <div class="empty-state">
+              <p class="eyebrow">{{ 'calendar.empty.eyebrow' | translate }}</p>
+              <h2>{{ 'calendar.empty.title' | translate }}</h2>
+              <p>{{ 'calendar.empty.body' | translate }}</p>
             </div>
-            <button type="button" class="secondary-button" (click)="selectedJobId.set(null)">
-              {{ 'common.close' | translate }}
-            </button>
-          </div>
-
-          <dl class="detail-list">
-            <div>
-              <dt>{{ 'common.client' | translate }}</dt>
-              <dd>{{ clientName(job.clientId) }}</dd>
-            </div>
-            <div>
-              <dt>{{ 'common.dates' | translate }}</dt>
-              <dd>{{ formatDate(job) }}</dd>
-            </div>
-            <div>
-              <dt>{{ 'common.status' | translate }}</dt>
-              <dd class="status-text">{{ ('jobStatus.' + job.status) | translate }}</dd>
-            </div>
-            <div>
-              <dt>{{ 'common.subtotal' | translate }}</dt>
-              <dd>{{ subtotal(job) }}</dd>
-            </div>
-          </dl>
-
-          @if (job.description) {
-            <p class="note-block">{{ job.description }}</p>
           }
-
-          <div class="actions wrap">
-            <a class="primary-button" [routerLink]="['/jobs', job.id]">
-              {{ 'calendar.selected.editJob' | translate }}
-            </a>
-
-            @if (job.invoiceId) {
-              <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
-                {{ 'calendar.selected.viewInvoice' | translate }}
-              </a>
-            } @else if (canCreateInvoice(job)) {
-              <button type="button" class="secondary-button" (click)="createInvoice(job)">
-                {{ 'calendar.selected.createInvoice' | translate }}
-              </button>
-            }
-          </div>
-        } @else {
-          <div class="empty-state">
-            <p class="eyebrow">{{ 'calendar.empty.eyebrow' | translate }}</p>
-            <h2>{{ 'calendar.empty.title' | translate }}</h2>
-            <p>{{ 'calendar.empty.body' | translate }}</p>
-          </div>
-        }
-      </aside>
+        </aside>
+      }
     </section>
+
+    <ng-template #selectedJobDetails let-job>
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">{{ 'calendar.selected.eyebrow' | translate }}</p>
+          <h2>{{ job.title }}</h2>
+        </div>
+        <button type="button" class="secondary-button" (click)="closeSelectedJob()">
+          {{ 'common.close' | translate }}
+        </button>
+      </div>
+
+      <dl class="detail-list">
+        <div>
+          <dt>{{ 'common.client' | translate }}</dt>
+          <dd>{{ clientName(job.clientId) }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'common.dates' | translate }}</dt>
+          <dd>{{ formatDate(job) }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'common.status' | translate }}</dt>
+          <dd class="status-text">{{ ('jobStatus.' + job.status) | translate }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'common.subtotal' | translate }}</dt>
+          <dd>{{ subtotal(job) }}</dd>
+        </div>
+      </dl>
+
+      @if (job.description) {
+        <p class="note-block">{{ job.description }}</p>
+      }
+
+      <div class="actions wrap">
+        <a class="primary-button" [routerLink]="['/jobs', job.id]">
+          {{ 'calendar.selected.editJob' | translate }}
+        </a>
+
+        @if (job.invoiceId) {
+          <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
+            {{ 'calendar.selected.viewInvoice' | translate }}
+          </a>
+        } @else if (canCreateInvoice(job)) {
+          <button type="button" class="secondary-button" (click)="createInvoice(job)">
+            {{ 'calendar.selected.createInvoice' | translate }}
+          </button>
+        }
+      </div>
+    </ng-template>
+
+    @if (showSelectedJobDialog() && selectedJob(); as job) {
+      <button
+        type="button"
+        class="calendar-dialog-backdrop"
+        (click)="closeSelectedJob()"
+        [attr.aria-label]="'common.close' | translate"
+      ></button>
+
+      <section class="panel stack-lg calendar-dialog" role="dialog" aria-modal="true" [attr.aria-label]="job.title">
+        <ng-container *ngTemplateOutlet="selectedJobDetails; context: { $implicit: job }"></ng-container>
+      </section>
+    }
   `,
   styles: [
     `
@@ -186,6 +205,10 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         flex-wrap: wrap;
         color: var(--text-muted);
         font-size: 0.92rem;
+      }
+
+      .calendar-panel {
+        container-type: inline-size;
       }
 
       .calendar-grid {
@@ -270,7 +293,7 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
       .calendar-new-job {
         width: 1.5rem;
         height: 1.5rem;
-        margin: 2px;
+        margin: 4px;
         border-radius: 999px;
         border: 1px solid rgba(251, 191, 36, 0.36);
         background: linear-gradient(135deg, rgba(251, 191, 36, 0.96) 0%, rgba(245, 158, 11, 0.96) 100%);
@@ -297,6 +320,54 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
         top: 1.5rem;
       }
 
+      @container (max-width: 64rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 55rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 46rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 37rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @container (max-width: 28rem) {
+        .calendar-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .calendar-dialog-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 70;
+        border: 0;
+        background: rgba(2, 6, 23, 0.56);
+      }
+
+      .calendar-dialog {
+        position: fixed;
+        inset: 1rem;
+        z-index: 71;
+        max-width: 34rem;
+        max-height: calc(100vh - 2rem);
+        margin: 0 auto;
+        overflow: auto;
+      }
+
       @media (max-width: 980px) {
         .calendar-grid {
           gap: 0.5rem;
@@ -304,7 +375,7 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
 
         .calendar-cell {
           min-height: 7rem;
-          padding: 0.7rem;
+          padding: 0;
         }
 
         .sticky-panel {
@@ -313,8 +384,9 @@ import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
       }
 
       @media (max-width: 720px) {
-        .calendar-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+        .calendar-dialog {
+          inset: 0.75rem;
+          max-height: calc(100vh - 1.5rem);
         }
       }
     `
@@ -344,6 +416,7 @@ export class CalendarPageComponent {
 
   readonly weekdayLabels = computed(() => buildWeekdayLabels(this.i18n.currentLocale()));
   readonly showWeekdayHeadings = computed(() => this.calendarColumnCount() >= 7);
+  readonly showSelectedJobDialog = computed(() => this.calendarColumnCount() <= 2);
   readonly newJobIcon = 'M12 5v14M5 12h14';
 
   readonly monthTitle = computed(() => monthLabel(this.visibleMonth(), this.i18n.currentLocale()));
@@ -406,6 +479,10 @@ export class CalendarPageComponent {
   selectJob(job: JobRecord, event: Event): void {
     event.stopPropagation();
     this.selectedJobId.set(job.id);
+  }
+
+  closeSelectedJob(): void {
+    this.selectedJobId.set(null);
   }
 
   clientName(clientId: string): string {
