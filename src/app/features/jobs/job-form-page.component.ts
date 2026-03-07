@@ -95,7 +95,8 @@ export class JobFormPageComponent {
       return;
     }
 
-    await this.router.navigate(['/jobs', event.jobId], {
+    await this.router.navigate(['/calendar'], {
+      queryParams: { job: event.jobId },
       replaceUrl: true,
       state: event.queuedUploadError
         ? ({ jobFormError: event.queuedUploadError } satisfies JobFormNavigationState)

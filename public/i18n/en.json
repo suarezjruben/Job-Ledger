@@ -345,6 +345,7 @@
       "create": "Create",
       "saved": "Job saved.",
       "errors": {
+        "validation": "Complete the required fields before saving the job.",
         "dateOrder": "The end date must be the same day or later than the start date.",
         "save": "Unable to save job.",
         "missingClient": "The linked client record could not be found.",

@@ -72,7 +72,12 @@ import { calculateLineTotal, normalizeCents, toCurrency } from '../../core/utils
 
                       <label class="field">
                         <span>{{ 'common.kind' | translate }}</span>
-                        <select formControlName="kind" [disabled]="!isDraft()">
+                        <select
+                          [attr.id]="'invoice-line-kind-' + i"
+                          [attr.name]="'invoiceLineKind-' + i"
+                          formControlName="kind"
+                          [disabled]="!isDraft()"
+                        >
                           <option value="labor">{{ 'lineItemKinds.labor' | translate }}</option>
                           <option value="material">{{ 'lineItemKinds.material' | translate }}</option>
                           <option value="custom">{{ 'lineItemKinds.custom' | translate }}</option>

@@ -29,7 +29,12 @@ import { toCurrency } from '../../core/utils/money.utils';
         <div class="grid-two">
           <label class="field">
             <span>{{ 'history.filters.recordType' | translate }}</span>
-            <select [value]="recordType()" (change)="recordType.set(($any($event.target)).value)">
+            <select
+              id="history-record-type"
+              name="historyRecordType"
+              [value]="recordType()"
+              (change)="recordType.set(($any($event.target)).value)"
+            >
               <option value="all">{{ 'history.filters.recordTypes.all' | translate }}</option>
               <option value="job">{{ 'history.filters.recordTypes.job' | translate }}</option>
               <option value="invoice">{{ 'history.filters.recordTypes.invoice' | translate }}</option>
@@ -38,7 +43,12 @@ import { toCurrency } from '../../core/utils/money.utils';
 
           <label class="field">
             <span>{{ 'common.client' | translate }}</span>
-            <select [value]="clientId()" (change)="clientId.set(($any($event.target)).value)">
+            <select
+              id="history-client"
+              name="historyClient"
+              [value]="clientId()"
+              (change)="clientId.set(($any($event.target)).value)"
+            >
               <option value="">{{ 'history.filters.allClients' | translate }}</option>
               @for (client of clients(); track client.id) {
                 <option [value]="client.id">{{ client.displayName }}</option>
