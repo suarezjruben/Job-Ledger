@@ -10,11 +10,11 @@ import {
   signal,
   viewChild
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { CommonModule, DOCUMENT } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
-import { of, switchMap } from 'rxjs';
+import { map, of, switchMap } from 'rxjs';
 import { AppI18nService } from '../../core/services/app-i18n.service';
 import { ClientsRepository } from '../../core/services/clients.repository';
 import { InvoicesRepository } from '../../core/services/invoices.repository';
@@ -39,6 +39,10 @@ import {
 } from '../../core/utils/date.utils';
 import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
 import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component';
+
+interface CalendarNavigationState {
+  jobFormError?: string;
+}
 
 @Component({
   selector: 'app-calendar-page',
@@ -708,7 +712,9 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
 })
 export class CalendarPageComponent {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly document = inject(DOCUMENT);
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly imagesRepository = inject(JobImagesRepository);
   private readonly invoicesRepository = inject(InvoicesRepository);
@@ -726,6 +732,10 @@ export class CalendarPageComponent {
   readonly error = signal('');
   readonly thumbUrls = signal<Record<string, string>>({});
   readonly calendarColumnCount = signal(7);
+  readonly selectedJobRouteId = toSignal(
+    this.route.queryParamMap.pipe(map((params) => params.get('job'))),
+    { initialValue: this.route.snapshot.queryParamMap.get('job') }
+  );
 
   readonly jobs = toSignal(this.jobsRepository.observeJobs(), { initialValue: [] as JobRecord[] });
   readonly clients = toSignal(this.clientsRepository.observeClients(), { initialValue: [] as ClientRecord[] });
@@ -777,6 +787,20 @@ export class CalendarPageComponent {
   });
 
   constructor() {
+    this.consumeNavigationState();
+
+    effect(() => {
+      const jobId = this.selectedJobRouteId();
+
+      if (!jobId) {
+        return;
+      }
+
+      this.message.set('');
+      this.editingJobId.set(null);
+      this.selectedJobId.set(jobId);
+    });
+
     afterNextRender(() => {
       const grid = this.calendarGridRef()?.nativeElement;
 
@@ -875,6 +899,7 @@ export class CalendarPageComponent {
     this.error.set('');
     this.editingJobId.set(null);
     this.selectedJobId.set(job.id);
+    void this.updateSelectedJobQueryParam(job.id);
   }
 
   closeSelectedJob(): void {
@@ -882,6 +907,7 @@ export class CalendarPageComponent {
     this.error.set('');
     this.editingJobId.set(null);
     this.selectedJobId.set(null);
+    void this.updateSelectedJobQueryParam(null);
   }
 
   clientName(clientId: string): string {
@@ -966,6 +992,30 @@ export class CalendarPageComponent {
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.images.errors.open'));
     }
+  }
+
+  private consumeNavigationState(): void {
+    const windowRef = this.document.defaultView;
+    const historyState = (windowRef?.history.state ?? {}) as CalendarNavigationState;
+
+    if (!historyState.jobFormError || !windowRef) {
+      return;
+    }
+
+    this.error.set(historyState.jobFormError);
+
+    const nextState = { ...historyState };
+    delete nextState.jobFormError;
+    windowRef.history.replaceState(nextState, '', windowRef.location.href);
+  }
+
+  private async updateSelectedJobQueryParam(jobId: string | null): Promise<void> {
+    await this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { job: jobId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   private readGridColumnCount(grid: HTMLElement): number {
