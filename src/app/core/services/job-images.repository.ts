@@ -49,6 +49,10 @@ export class JobImagesRepository {
   private readonly auth = inject(Auth);
   private readonly session = inject(SessionService);
 
+  validateSourceFile(file: File): void {
+    this.assertValidSourceFile(file);
+  }
+
   observeImages(jobId: string): Observable<JobImageRecord[]> {
     const reference = query(this.imagesCollection(this.session.requireUid(), jobId), orderBy('createdAt', 'desc'));
     return collectionData(reference, { idField: 'id' }) as Observable<JobImageRecord[]>;

@@ -282,6 +282,34 @@ textarea {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.route-modal-page {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.route-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2, 6, 23, 0.58);
+}
+
+.route-modal-shell {
+  position: relative;
+  z-index: 1;
+  width: min(88rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+}
+
+.route-modal-shell--narrow {
+  width: min(68rem, calc(100vw - 2rem));
+}
+
 .panel {
   position: relative;
   background: var(--panel);
@@ -488,6 +516,7 @@ textarea {
 
 .detail-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
 }
 
@@ -578,6 +607,16 @@ textarea {
 }
 
 @media (max-width: 720px) {
+  .route-modal-page {
+    padding: 0.75rem;
+  }
+
+  .route-modal-shell,
+  .route-modal-shell--narrow {
+    width: calc(100vw - 1.5rem);
+    max-height: calc(100vh - 1.5rem);
+  }
+
   .shell-main,
   .shell-sidebar {
     padding: 1rem;
