@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT, Location } from '@angular/common';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -19,170 +19,184 @@ import { calculateLineTotal, normalizeCents, toCurrency } from '../../core/utils
   imports: [CommonModule, ReactiveFormsModule, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="page-grid">
-      <article class="panel stack-lg">
-        @if (invoice(); as invoice) {
-          <div class="page-header">
-            <div>
-              <p class="eyebrow">{{ 'invoices.detail.eyebrow' | translate }}</p>
-              <h2>{{ invoice.invoiceNumber }}</h2>
-            </div>
+    <section class="route-modal-page">
+      <button
+        type="button"
+        class="route-modal-backdrop"
+        (click)="close()"
+        [attr.aria-label]="'common.close' | translate"
+      ></button>
 
-            <div class="tag-row">
-              <span class="pill">{{ ('invoiceStatus.' + invoice.status) | translate }}</span>
-              <span class="pill">{{ toCurrency(invoice.subtotalCents) }}</span>
-            </div>
-          </div>
+      <div class="route-modal-shell">
+        <section class="page-grid">
+          <article class="panel stack-lg">
+            @if (invoice(); as invoice) {
+              <div class="page-header">
+                <div>
+                  <p class="eyebrow">{{ 'invoices.detail.eyebrow' | translate }}</p>
+                  <h2>{{ invoice.invoiceNumber }}</h2>
+                </div>
 
-          <div class="detail-list">
-            <div>
-              <dt>{{ 'common.client' | translate }}</dt>
-              <dd>{{ invoice.clientSnapshot.displayName }}</dd>
-            </div>
-            <div>
-              <dt>{{ 'common.job' | translate }}</dt>
-              <dd>{{ invoice.jobSnapshot.title }}</dd>
-            </div>
-            <div>
-              <dt>{{ 'invoices.detail.invoiceStatus' | translate }}</dt>
-              <dd>{{ ('invoiceStatus.' + invoice.status) | translate }}</dd>
-            </div>
-          </div>
+                <div class="actions wrap">
+                  <span class="pill">{{ ('invoiceStatus.' + invoice.status) | translate }}</span>
+                  <span class="pill">{{ toCurrency(invoice.subtotalCents) }}</span>
+                  <button type="button" class="ghost-button" (click)="close()">
+                    {{ 'common.close' | translate }}
+                  </button>
+                </div>
+              </div>
 
-          <form class="stack-lg" [formGroup]="form" (ngSubmit)="saveDraft()">
-            <div class="stack-md" formArrayName="lineItems">
-              @for (lineItem of lineItems.controls; track lineItem; let i = $index) {
-                <div class="line-item-grid" [formGroupName]="i">
-                  <label class="field">
-                    <span>{{ 'common.description' | translate }}</span>
-                    <input type="text" formControlName="description" [readonly]="!isDraft()" />
-                  </label>
+              <div class="detail-list">
+                <div>
+                  <dt>{{ 'common.client' | translate }}</dt>
+                  <dd>{{ invoice.clientSnapshot.displayName }}</dd>
+                </div>
+                <div>
+                  <dt>{{ 'common.job' | translate }}</dt>
+                  <dd>{{ invoice.jobSnapshot.title }}</dd>
+                </div>
+                <div>
+                  <dt>{{ 'invoices.detail.invoiceStatus' | translate }}</dt>
+                  <dd>{{ ('invoiceStatus.' + invoice.status) | translate }}</dd>
+                </div>
+              </div>
 
-                  <label class="field">
-                    <span>{{ 'common.kind' | translate }}</span>
-                    <select formControlName="kind" [disabled]="!isDraft()">
-                      <option value="labor">{{ 'lineItemKinds.labor' | translate }}</option>
-                      <option value="material">{{ 'lineItemKinds.material' | translate }}</option>
-                      <option value="custom">{{ 'lineItemKinds.custom' | translate }}</option>
-                    </select>
-                  </label>
+              <form class="stack-lg" [formGroup]="form" (ngSubmit)="saveDraft()">
+                <div class="stack-md" formArrayName="lineItems">
+                  @for (lineItem of lineItems.controls; track lineItem; let i = $index) {
+                    <div class="line-item-grid" [formGroupName]="i">
+                      <label class="field">
+                        <span>{{ 'common.description' | translate }}</span>
+                        <input type="text" formControlName="description" [readonly]="!isDraft()" />
+                      </label>
 
-                  <label class="field">
-                    <span>{{ 'common.unitLabel' | translate }}</span>
-                    <input type="text" formControlName="unitLabel" [readonly]="!isDraft()" />
-                  </label>
+                      <label class="field">
+                        <span>{{ 'common.kind' | translate }}</span>
+                        <select formControlName="kind" [disabled]="!isDraft()">
+                          <option value="labor">{{ 'lineItemKinds.labor' | translate }}</option>
+                          <option value="material">{{ 'lineItemKinds.material' | translate }}</option>
+                          <option value="custom">{{ 'lineItemKinds.custom' | translate }}</option>
+                        </select>
+                      </label>
 
-                  <label class="field">
-                    <span>{{ 'common.quantity' | translate }}</span>
-                    <input type="number" min="0" step="0.25" formControlName="quantity" [readonly]="!isDraft()" />
-                  </label>
+                      <label class="field">
+                        <span>{{ 'common.unitLabel' | translate }}</span>
+                        <input type="text" formControlName="unitLabel" [readonly]="!isDraft()" />
+                      </label>
 
-                  <label class="field">
-                    <span>{{ 'common.rateCents' | translate }}</span>
-                    <input type="number" min="0" step="1" formControlName="unitPriceCents" [readonly]="!isDraft()" />
-                  </label>
+                      <label class="field">
+                        <span>{{ 'common.quantity' | translate }}</span>
+                        <input type="number" min="0" step="0.25" formControlName="quantity" [readonly]="!isDraft()" />
+                      </label>
 
-                  <div class="line-item-total">
-                    <strong>{{ lineTotal(i) }}</strong>
-                    @if (isDraft()) {
-                      <button type="button" class="ghost-button" (click)="removeLineItem(i)">
-                        {{ 'common.remove' | translate }}
+                      <label class="field">
+                        <span>{{ 'common.rateCents' | translate }}</span>
+                        <input type="number" min="0" step="1" formControlName="unitPriceCents" [readonly]="!isDraft()" />
+                      </label>
+
+                      <div class="line-item-total">
+                        <strong>{{ lineTotal(i) }}</strong>
+                        @if (isDraft()) {
+                          <button type="button" class="ghost-button" (click)="removeLineItem(i)">
+                            {{ 'common.remove' | translate }}
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                @if (isDraft()) {
+                  <button type="button" class="secondary-button" (click)="addLineItem()">
+                    {{ 'invoices.detail.addLineItem' | translate }}
+                  </button>
+                }
+
+                <div class="summary-row">
+                  <span>{{ 'common.subtotal' | translate }}</span>
+                  <strong>{{ subtotal() }}</strong>
+                </div>
+
+                @if (error()) {
+                  <p class="error-text">{{ error() }}</p>
+                }
+
+                <div class="actions wrap">
+                  @if (isDraft()) {
+                    <button type="submit" class="secondary-button" [disabled]="saving()">
+                      {{ saving() ? ('common.saving' | translate) : ('invoices.detail.saveDraft' | translate) }}
+                    </button>
+                    <button type="button" class="primary-button" [disabled]="issuing()" (click)="issueInvoice()">
+                      {{
+                        issuing()
+                          ? ('invoices.detail.generating' | translate)
+                          : ('invoices.detail.issueInvoicePdf' | translate)
+                      }}
+                    </button>
+                  } @else {
+                    <button type="button" class="secondary-button" (click)="download()">
+                      {{ 'common.downloadPdf' | translate }}
+                    </button>
+
+                    @if (invoice.status === 'issued') {
+                      <button type="button" class="primary-button" (click)="markPaid()">
+                        {{ 'invoices.detail.markPaid' | translate }}
+                      </button>
+                      <button type="button" class="ghost-button" (click)="voidInvoice()">
+                        {{ 'invoices.detail.voidInvoice' | translate }}
                       </button>
                     }
-                  </div>
+
+                    @if (invoice.status === 'paid') {
+                      <button type="button" class="ghost-button" (click)="archive()">
+                        {{ 'common.archive' | translate }}
+                      </button>
+                    }
+
+                    @if (invoice.status === 'void') {
+                      <button type="button" class="primary-button" (click)="createReplacement()">
+                        {{ 'invoices.detail.createReplacement' | translate }}
+                      </button>
+                    }
+                  }
                 </div>
-              }
-            </div>
-
-            @if (isDraft()) {
-              <button type="button" class="secondary-button" (click)="addLineItem()">
-                {{ 'invoices.detail.addLineItem' | translate }}
-              </button>
+              </form>
+            } @else {
+              <div class="empty-state">
+                <h2>{{ 'invoices.detail.loading.title' | translate }}</h2>
+                <p>{{ 'invoices.detail.loading.body' | translate }}</p>
+              </div>
             }
+          </article>
 
-            <div class="summary-row">
-              <span>{{ 'common.subtotal' | translate }}</span>
-              <strong>{{ subtotal() }}</strong>
-            </div>
+          <aside class="panel stack-lg">
+            @if (invoice(); as invoice) {
+              <div class="page-header">
+                <div>
+                  <p class="eyebrow">{{ 'invoices.detail.snapshot.eyebrow' | translate }}</p>
+                  <h2>{{ 'invoices.detail.snapshot.title' | translate }}</h2>
+                </div>
+              </div>
 
-            @if (error()) {
-              <p class="error-text">{{ error() }}</p>
+              <div class="stack-md">
+                <div>
+                  <h3>{{ 'invoices.detail.snapshot.client' | translate }}</h3>
+                  <p>{{ invoice.clientSnapshot.displayName }}</p>
+                  <p>{{ invoice.clientSnapshot.companyName }}</p>
+                  <p>{{ invoice.clientSnapshot.billingEmail }}</p>
+                </div>
+
+                <div>
+                  <h3>{{ 'invoices.detail.snapshot.job' | translate }}</h3>
+                  <p>{{ invoice.jobSnapshot.title }}</p>
+                  <p>{{ jobDateRange(invoice) }}</p>
+                  <p>{{ invoice.jobSnapshot.description }}</p>
+                </div>
+              </div>
             }
-
-            <div class="actions wrap">
-              @if (isDraft()) {
-                <button type="submit" class="secondary-button" [disabled]="saving()">
-                  {{ saving() ? ('common.saving' | translate) : ('invoices.detail.saveDraft' | translate) }}
-                </button>
-                <button type="button" class="primary-button" [disabled]="issuing()" (click)="issueInvoice()">
-                  {{
-                    issuing()
-                      ? ('invoices.detail.generating' | translate)
-                      : ('invoices.detail.issueInvoicePdf' | translate)
-                  }}
-                </button>
-              } @else {
-                <button type="button" class="secondary-button" (click)="download()">
-                  {{ 'common.downloadPdf' | translate }}
-                </button>
-
-                @if (invoice.status === 'issued') {
-                  <button type="button" class="primary-button" (click)="markPaid()">
-                    {{ 'invoices.detail.markPaid' | translate }}
-                  </button>
-                  <button type="button" class="ghost-button" (click)="voidInvoice()">
-                    {{ 'invoices.detail.voidInvoice' | translate }}
-                  </button>
-                }
-
-                @if (invoice.status === 'paid') {
-                  <button type="button" class="ghost-button" (click)="archive()">
-                    {{ 'common.archive' | translate }}
-                  </button>
-                }
-
-                @if (invoice.status === 'void') {
-                  <button type="button" class="primary-button" (click)="createReplacement()">
-                    {{ 'invoices.detail.createReplacement' | translate }}
-                  </button>
-                }
-              }
-            </div>
-          </form>
-        } @else {
-          <div class="empty-state">
-            <h2>{{ 'invoices.detail.loading.title' | translate }}</h2>
-            <p>{{ 'invoices.detail.loading.body' | translate }}</p>
-          </div>
-        }
-      </article>
-
-      <aside class="panel stack-lg">
-        @if (invoice(); as invoice) {
-          <div class="page-header">
-            <div>
-              <p class="eyebrow">{{ 'invoices.detail.snapshot.eyebrow' | translate }}</p>
-              <h2>{{ 'invoices.detail.snapshot.title' | translate }}</h2>
-            </div>
-          </div>
-
-          <div class="stack-md">
-            <div>
-              <h3>{{ 'invoices.detail.snapshot.client' | translate }}</h3>
-              <p>{{ invoice.clientSnapshot.displayName }}</p>
-              <p>{{ invoice.clientSnapshot.companyName }}</p>
-              <p>{{ invoice.clientSnapshot.billingEmail }}</p>
-            </div>
-
-            <div>
-              <h3>{{ 'invoices.detail.snapshot.job' | translate }}</h3>
-              <p>{{ invoice.jobSnapshot.title }}</p>
-              <p>{{ jobDateRange(invoice) }}</p>
-              <p>{{ invoice.jobSnapshot.description }}</p>
-            </div>
-          </div>
-        }
-      </aside>
+          </aside>
+        </section>
+      </div>
     </section>
   `,
   styles: [
@@ -223,6 +237,8 @@ export class InvoiceDetailPageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
+  private readonly document = inject(DOCUMENT);
   private readonly invoicesRepository = inject(InvoicesRepository);
   private readonly businessProfiles = inject(BusinessProfileRepository);
   private readonly invoiceWorkflow = inject(InvoiceWorkflowService);
@@ -401,6 +417,15 @@ export class InvoiceDetailPageComponent {
     }
   }
 
+  async close(): Promise<void> {
+    if (this.shouldUseHistoryBack()) {
+      this.location.back();
+      return;
+    }
+
+    await this.router.navigate(['/invoices']);
+  }
+
   jobDateRange(invoice: InvoiceRecord): string {
     return formatDateRange(
       invoice.jobSnapshot.startDate,
@@ -435,5 +460,9 @@ export class InvoiceDetailPageComponent {
         totalCents: calculateLineTotal(quantity, unitPriceCents)
       };
     });
+  }
+
+  private shouldUseHistoryBack(): boolean {
+    return (this.document.defaultView?.history.state?.navigationId ?? 0) > 1;
   }
 }

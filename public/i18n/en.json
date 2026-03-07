@@ -70,6 +70,7 @@
     "next": "Next",
     "close": "Close",
     "client": "Client",
+    "address": "Address",
     "job": "Job",
     "dates": "Dates",
     "status": "Status",
@@ -171,7 +172,15 @@
       "eyebrow": "Selected job",
       "editJob": "Edit job",
       "viewInvoice": "View invoice",
-      "createInvoice": "Create invoice"
+      "createInvoice": "Create invoice",
+      "sections": {
+        "invoiceEyebrow": "Generated invoice",
+        "invoiceTitle": "Invoice details",
+        "invoiceEmptyTitle": "No generated invoice yet",
+        "invoiceEmptyReady": "This job is ready for its first invoice.",
+        "invoiceEmptyPending": "Complete the job before generating an invoice.",
+        "invoiceCreated": "Invoice draft created."
+      }
     },
     "empty": {
       "eyebrow": "Detail drawer",
@@ -332,8 +341,8 @@
         "title": "Billable line items",
         "add": "Add line"
       },
-      "save": "Save job",
-      "create": "Create job",
+      "save": "Save",
+      "create": "Create",
       "saved": "Job saved.",
       "errors": {
         "dateOrder": "The end date must be the same day or later than the start date.",
@@ -348,6 +357,8 @@
       "eyebrow": "Job photos",
       "title": "Private image storage",
       "count": "{{count}}/10 images",
+      "pendingHint": "Selected photos will upload after you save the job.",
+      "pendingCreateBody": "Choose photos now and they will upload after the job is created.",
       "saveFirst": {
         "title": "Save the job first",
         "body": "Photos are stored against an existing job record."
@@ -362,7 +373,9 @@
         "body": "Upload a photo to generate secure thumb and display versions."
       },
       "errors": {
+        "limit": "You can keep up to 10 photos per job.",
         "upload": "Unable to upload photo.",
+        "uploadAfterSave": "The job was saved, but one or more queued photos could not be uploaded.",
         "open": "Unable to open photo.",
         "delete": "Unable to delete photo."
       }
