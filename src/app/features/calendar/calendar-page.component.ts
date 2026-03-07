@@ -614,7 +614,7 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
         background: rgba(2, 6, 23, 0.56);
       }
 
-      .calendar-dialog {
+      .panel.calendar-dialog {
         position: fixed;
         inset: 1rem;
         z-index: 71;
@@ -623,6 +623,7 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
         max-height: calc(100vh - 2rem);
         margin: 0 auto;
         overflow: auto;
+        padding: 0 1.4rem 1.4rem;
       }
 
       .calendar-edit-dialog-backdrop {
@@ -642,6 +643,15 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
         justify-content: space-between;
         align-items: start;
         gap: 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        margin: 0 -1.4rem 0;
+        padding: 0.85rem 1.4rem;
+        background:
+          linear-gradient(180deg, var(--panel) 0%, color-mix(in srgb, var(--panel) 92%, transparent) 100%);
+        border-bottom: 1px solid var(--panel-border);
+        backdrop-filter: blur(18px);
       }
 
       .calendar-dialog-close {
