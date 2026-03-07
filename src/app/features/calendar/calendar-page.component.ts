@@ -224,22 +224,6 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
         }
       </div>
 
-      <div class="actions wrap">
-        <button type="button" class="primary-button" (click)="openEditMode()">
-          {{ 'common.edit' | translate }}
-        </button>
-
-        @if (job.invoiceId) {
-          <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]" (click)="closeSelectedJob()">
-            {{ 'calendar.selected.viewInvoice' | translate }}
-          </a>
-        } @else if (canCreateInvoice(job)) {
-          <button type="button" class="secondary-button" (click)="createInvoice(job)">
-            {{ 'calendar.selected.createInvoice' | translate }}
-          </button>
-        }
-      </div>
-
       <section class="stack-sm dialog-section">
         <div class="section-heading">
           <div>
@@ -314,6 +298,12 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
           }
         </div>
       </section>
+
+      <div class="actions wrap calendar-detail-actions">
+        <button type="button" class="primary-button" (click)="openEditMode()">
+          {{ 'common.edit' | translate }}
+        </button>
+      </div>
     </ng-template>
 
     @if (selectedJob(); as job) {
@@ -476,6 +466,11 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
 
       .dialog-section {
         padding-top: 0.25rem;
+      }
+
+      .calendar-detail-actions {
+        justify-content: flex-end;
+        margin-top: 0.25rem;
       }
 
       .invoice-card {
