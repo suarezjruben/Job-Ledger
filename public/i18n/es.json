@@ -341,8 +341,8 @@
         "title": "Conceptos facturables",
         "add": "Agregar línea"
       },
-      "save": "Guardar trabajo",
-      "create": "Crear trabajo",
+      "save": "Guardar",
+      "create": "Crear",
       "saved": "Trabajo guardado.",
       "errors": {
         "dateOrder": "La fecha de fin debe ser el mismo día o posterior a la fecha de inicio.",
@@ -357,6 +357,8 @@
       "eyebrow": "Fotos del trabajo",
       "title": "Almacenamiento privado de imágenes",
       "count": "{{count}}/10 imágenes",
+      "pendingHint": "Las fotos seleccionadas se subirán después de guardar el trabajo.",
+      "pendingCreateBody": "Elige fotos ahora y se subirán después de crear el trabajo.",
       "saveFirst": {
         "title": "Guarda el trabajo primero",
         "body": "Las fotos se almacenan contra un registro de trabajo existente."
@@ -371,7 +373,9 @@
         "body": "Sube una foto para generar versiones seguras de miniatura y visualización."
       },
       "errors": {
+        "limit": "Puedes guardar hasta 10 fotos por trabajo.",
         "upload": "No se pudo subir la foto.",
+        "uploadAfterSave": "El trabajo se guardó, pero una o más fotos en cola no pudieron subirse.",
         "open": "No se pudo abrir la foto.",
         "delete": "No se pudo eliminar la foto."
       }
