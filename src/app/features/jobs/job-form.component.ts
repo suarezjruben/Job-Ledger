@@ -121,11 +121,20 @@ export interface JobFormSavedEvent {
             class="actions wrap job-form-header-primary-actions"
             [class.job-form-header-primary-actions--mobile-menu]="useHistoryActionMenu()"
           >
-            <button type="button" class="ghost-button" (click)="requestClose()">
+            <button
+              type="button"
+              class="ghost-button job-form-header-close-action"
+              (click)="requestClose()"
+            >
               {{ (isReadonly() ? 'common.close' : 'common.cancel') | translate }}
             </button>
             @if (!isReadonly()) {
-              <button type="submit" class="primary-button" [disabled]="saving()">
+              <button
+                type="submit"
+                class="primary-button job-form-header-save-action"
+                [class.job-form-header-save-action--mobile-menu]="useHistoryActionMenu()"
+                [disabled]="saving()"
+              >
                 {{ submitLabel() }}
               </button>
             }
@@ -202,14 +211,10 @@ export interface JobFormSavedEvent {
                       }
                     }
 
-                    <button type="button" class="ghost-button job-actions-menu__item" (click)="requestCloseFromMenu()">
-                      {{ (isReadonly() ? 'common.close' : 'common.cancel') | translate }}
-                    </button>
-
                     @if (!isReadonly()) {
                       <button
                         type="submit"
-                        class="primary-button job-actions-menu__item"
+                        class="primary-button job-actions-menu__item job-actions-menu__item--save"
                         [disabled]="saving()"
                         (click)="closeHeaderActionsMenu()"
                       >
@@ -513,6 +518,11 @@ export interface JobFormSavedEvent {
         justify-content: flex-end;
       }
 
+      .job-form-header-close-action,
+      .job-form-header-save-action {
+        min-width: 100px;
+      }
+
       .job-form-mobile-actions {
         display: none;
         position: relative;
@@ -707,7 +717,7 @@ export interface JobFormSavedEvent {
         }
       }
 
-      @media (max-width: 800px) {
+      @media (max-width: 900px) {
         .job-form-header-buttons--mobile-menu {
           display: none;
         }
@@ -722,19 +732,29 @@ export interface JobFormSavedEvent {
         }
       }
 
-      @media (max-width: 800px) and (orientation: portrait) {
-        .job-form-header-primary-actions--mobile-menu {
+      @media (max-width: 900px) and (orientation: portrait) {
+        .job-form-header-close-action,
+        .job-form-mobile-actions__trigger {
+          width: 120px;
+          min-width: 120px;
+        }
+
+        .job-form-header-save-action--mobile-menu {
           display: none;
         }
       }
 
-      @media (max-width: 800px) and (orientation: landscape) {
+      @media (max-width: 900px) and (orientation: landscape) {
         .job-actions-menu {
           width: min(28rem, calc(100vw - 2rem));
         }
 
         .job-actions-menu__items {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .job-actions-menu__item--save {
+          display: none;
         }
       }
     `
@@ -1312,11 +1332,6 @@ export class JobFormComponent {
   async restoreJobFromMenu(): Promise<void> {
     this.closeHeaderActionsMenu();
     await this.restoreJob();
-  }
-
-  requestCloseFromMenu(): void {
-    this.closeHeaderActionsMenu();
-    this.requestClose();
   }
 
   @HostListener('document:click', ['$event'])
