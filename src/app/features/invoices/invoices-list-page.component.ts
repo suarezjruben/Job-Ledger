@@ -64,7 +64,7 @@ import { toCurrency } from '../../core/utils/money.utils';
 
                 <div class="tag-row">
                   <span class="pill">{{ ('invoiceStatus.' + invoice.status) | translate }}</span>
-                  <span class="pill">{{ toCurrency(invoice.subtotalCents) }}</span>
+                  <span class="pill">{{ toCurrency(invoice.subtotal) }}</span>
                 </div>
 
                 <div class="actions wrap">

@@ -54,11 +54,11 @@ describe('InvoiceWorkflowService', () => {
         description: 'Paint walls',
         quantity: 2,
         unitLabel: 'hours',
-        unitPriceCents: 5000,
-        totalCents: 10000
+        unitPrice: 50,
+        total: 100
       }
     ],
-    subtotalCents: 10000,
+    subtotal: 100,
     clientSnapshot: {
       displayName: 'Acme Co',
       billingEmail: 'billing@acme.com'

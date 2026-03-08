@@ -85,7 +85,6 @@
     "unitLabel": "Unit label",
     "quantity": "Quantity",
     "rate": "Rate",
-    "rateCents": "Rate (cents)",
     "customKind": "Custom kind",
     "remove": "Remove",
     "cancel": "Cancel",

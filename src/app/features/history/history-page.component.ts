@@ -87,8 +87,8 @@ import { toCurrency } from '../../core/utils/money.utils';
                 <div class="tag-row">
                   <span class="pill">{{ ('history.kinds.' + entry.kind) | translate }}</span>
                   <span class="pill">{{ statusLabel(entry) }}</span>
-                  @if (entry.amountCents !== undefined) {
-                    <span class="pill">{{ toCurrency(entry.amountCents) }}</span>
+                  @if (entry.amount !== undefined) {
+                    <span class="pill">{{ toCurrency(entry.amount) }}</span>
                   }
                 </div>
 
@@ -135,7 +135,7 @@ export class HistoryPageComponent {
         clientId: job.clientId,
         primaryDate: job.startDate,
         secondaryDate: job.endDate,
-        amountCents: job.lineItems.reduce((sum, lineItem) => sum + lineItem.totalCents, 0),
+        amount: job.lineItems.reduce((sum, lineItem) => sum + lineItem.total, 0),
         route: `/jobs/${job.id}`,
         archived: Boolean(job.archivedAt)
       })),
@@ -150,7 +150,7 @@ export class HistoryPageComponent {
           invoice.issuedAt?.toDate().toISOString().slice(0, 10) ??
           invoice.createdAt?.toDate().toISOString().slice(0, 10) ??
           '',
-        amountCents: invoice.subtotalCents,
+        amount: invoice.subtotal,
         route: `/invoices/${invoice.id}`,
         archived: Boolean(invoice.archivedAt)
       }))

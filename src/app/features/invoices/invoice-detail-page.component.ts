@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
 import { CommonModule, DOCUMENT, Location } from '@angular/common';
 import { AbstractControl, FormArray, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -11,12 +11,7 @@ import { InvoiceWorkflowService } from '../../core/services/invoice-workflow.ser
 import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { InvoiceRecord, JobLineItem } from '../../core/models';
 import { formatDateRange } from '../../core/utils/date.utils';
-import {
-  calculateLineTotal,
-  centsToDollarsAmount,
-  normalizeDollarsToCents,
-  toCurrency
-} from '../../core/utils/money.utils';
+import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/utils/money.utils';
 
 @Component({
   selector: 'app-invoice-detail-page',
@@ -32,21 +27,67 @@ import {
         [attr.aria-label]="'common.close' | translate"
       ></button>
 
-      <div class="route-modal-shell">
-        <section class="page-grid">
-          <article class="panel stack-lg">
+      <div class="route-modal-shell invoice-detail-shell">
+        <section class="page-grid single">
+          <article class="panel stack-lg modal-panel invoice-detail-panel">
             @if (invoice(); as invoice) {
-              <div class="page-header">
+              <div class="page-header modal-header">
                 <div>
                   <p class="eyebrow">{{ 'invoices.detail.eyebrow' | translate }}</p>
-                  <h2>{{ invoice.invoiceNumber }}</h2>
+                  <div class="invoice-title-row" #snapshotMenu>
+                    <h2>{{ invoice.invoiceNumber }}
+                    <button
+                      type="button"
+                      class="invoice-info-button"
+                      (click)="toggleSnapshotMenu($event)"
+                      [attr.aria-expanded]="snapshotMenuOpen()"
+                      aria-haspopup="dialog"
+                      [attr.aria-label]="'invoices.detail.snapshot.title' | translate"
+                      [title]="'invoices.detail.snapshot.title' | translate"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path [attr.d]="infoIcon"></path>
+                      </svg>
+                    </button>
+                    </h2>
+
+                    @if (snapshotMenuOpen()) {
+                      <section class="invoice-info-menu" role="dialog" [attr.aria-label]="'invoices.detail.snapshot.title' | translate">
+                        <div class="invoice-info-title">
+                          <div>
+                            <p class="eyebrow">{{ 'invoices.detail.snapshot.eyebrow' | translate }}</p>
+                            <h3>{{ 'invoices.detail.snapshot.title' | translate }}</h3>
+                          </div>
+                        </div>
+
+                        <div class="stack-md">
+                          <div>
+                            <h3>{{ 'invoices.detail.snapshot.client' | translate }}</h3>
+                            <p>{{ invoice.clientSnapshot.displayName }}</p>
+                            <p>{{ invoice.clientSnapshot.companyName }}</p>
+                            <p>{{ invoice.clientSnapshot.billingEmail }}</p>
+                          </div>
+
+                          <div>
+                            <h3>{{ 'invoices.detail.snapshot.job' | translate }}</h3>
+                            <p>{{ invoice.jobSnapshot.title }}</p>
+                            <p>{{ jobDateRange(invoice) }}</p>
+                            <p>{{ invoice.jobSnapshot.description }}</p>
+                          </div>
+                        </div>
+                      </section>
+                    }
+                  </div>
                 </div>
 
                 <div class="actions wrap">
                   <span class="pill">{{ ('invoiceStatus.' + invoice.status) | translate }}</span>
-                  <span class="pill">{{ toCurrency(invoice.subtotalCents) }}</span>
-                  <button type="button" class="ghost-button" (click)="close()">
-                    {{ 'common.close' | translate }}
+                  <span class="pill">{{ toCurrency(invoice.subtotal) }}</span>
+                  <button type="button" class="ghost-button modal-close-button" (click)="close()">
+                    <span class="modal-close-label">{{ 'common.close' | translate }}</span>
+                    <svg class="modal-close-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6 6 18"></path>
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -59,10 +100,6 @@ import {
                 <div>
                   <dt>{{ 'common.job' | translate }}</dt>
                   <dd>{{ invoice.jobSnapshot.title }}</dd>
-                </div>
-                <div>
-                  <dt>{{ 'invoices.detail.invoiceStatus' | translate }}</dt>
-                  <dd>{{ ('invoiceStatus.' + invoice.status) | translate }}</dd>
                 </div>
               </div>
 
@@ -108,7 +145,7 @@ import {
 
                       <label class="field">
                         <span>{{ 'common.rate' | translate }}</span>
-                        <input type="number" min="0" step="0.01" formControlName="unitPriceCents" [readonly]="!isDraft()" />
+                        <input type="number" min="0" step="0.01" formControlName="unitPrice" [readonly]="!isDraft()" />
                       </label>
 
                       <div class="line-item-total">
@@ -186,32 +223,6 @@ import {
             }
           </article>
 
-          <aside class="panel stack-lg">
-            @if (invoice(); as invoice) {
-              <div class="page-header">
-                <div>
-                  <p class="eyebrow">{{ 'invoices.detail.snapshot.eyebrow' | translate }}</p>
-                  <h2>{{ 'invoices.detail.snapshot.title' | translate }}</h2>
-                </div>
-              </div>
-
-              <div class="stack-md">
-                <div>
-                  <h3>{{ 'invoices.detail.snapshot.client' | translate }}</h3>
-                  <p>{{ invoice.clientSnapshot.displayName }}</p>
-                  <p>{{ invoice.clientSnapshot.companyName }}</p>
-                  <p>{{ invoice.clientSnapshot.billingEmail }}</p>
-                </div>
-
-                <div>
-                  <h3>{{ 'invoices.detail.snapshot.job' | translate }}</h3>
-                  <p>{{ invoice.jobSnapshot.title }}</p>
-                  <p>{{ jobDateRange(invoice) }}</p>
-                  <p>{{ invoice.jobSnapshot.description }}</p>
-                </div>
-              </div>
-            }
-          </aside>
         </section>
       </div>
     </section>
@@ -234,6 +245,24 @@ import {
         justify-items: end;
       }
 
+      .invoice-title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        position: relative;
+        width: fit-content;
+      }
+
+      .invoice-detail-shell {
+        overflow: hidden;
+      }
+
+      .panel.invoice-detail-panel {
+        max-height: calc(100vh - 2rem);
+        overflow: auto;
+        overscroll-behavior: contain;
+      }
+
       .summary-row {
         display: flex;
         justify-content: space-between;
@@ -242,9 +271,61 @@ import {
         background: rgba(56, 189, 248, 0.12);
       }
 
+      .invoice-info-button {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        border: 1px solid var(--secondary-border);
+        background: var(--surface-raised);
+        color: var(--text-muted);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        flex: 0 0 auto;
+      }
+
+      .invoice-info-button svg {
+        width: 1rem;
+        height: 1rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .invoice-info-menu {
+        position: absolute;
+        top: calc(100% + 0.7rem);
+        left: 0;
+        z-index: 8;
+        width: min(24rem, calc(100vw - 4rem));
+        padding: 1rem;
+        border-radius: 1.2rem;
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .invoice-info-title {
+        margin-bottom: 0.9rem;
+      }
+
+      .actions.wrap {
+        justify-content: flex-end;
+        align-self: center;
+      }
+
       @media (max-width: 1100px) {
         .line-item-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 720px) {
+        .panel.invoice-detail-panel {
+          max-height: calc(100vh - 1.5rem);
         }
       }
     `
@@ -273,7 +354,10 @@ export class InvoiceDetailPageComponent {
   readonly saving = signal(false);
   readonly issuing = signal(false);
   readonly error = signal('');
+  readonly snapshotMenuOpen = signal(false);
+  readonly infoIcon = 'M12 8h.01M11 12h1v4m0 5a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z';
   private readonly lastPatchedInvoiceId = signal<string | null>(null);
+  private readonly snapshotMenuRef = viewChild<ElementRef<HTMLElement>>('snapshotMenu');
 
   readonly form = this.fb.group({
     lineItems: this.fb.array([])
@@ -317,16 +401,21 @@ export class InvoiceDetailPageComponent {
   lineTotal(index: number): string {
     const group = this.lineItems.at(index);
     const quantity = Number(group.get('quantity')?.value ?? 0);
-    const unitPriceCents = normalizeDollarsToCents(group.get('unitPriceCents')?.value ?? 0);
-    return toCurrency(calculateLineTotal(quantity, unitPriceCents));
+    const unitPrice = normalizeAmount(group.get('unitPrice')?.value ?? 0);
+    return toCurrency(calculateLineTotal(quantity, unitPrice));
   }
 
   subtotal(): string {
-    return toCurrency(this.serializeLineItems().reduce((sum, lineItem) => sum + lineItem.totalCents, 0));
+    return toCurrency(this.serializeLineItems().reduce((sum, lineItem) => sum + lineItem.total, 0));
   }
 
   toCurrency(value: number): string {
     return toCurrency(value);
+  }
+
+  toggleSnapshotMenu(event: Event): void {
+    event.stopPropagation();
+    this.snapshotMenuOpen.update((open) => !open);
   }
 
   async saveDraft(): Promise<void> {
@@ -373,7 +462,7 @@ export class InvoiceDetailPageComponent {
         {
           ...this.invoice()!,
           lineItems,
-          subtotalCents: lineItems.reduce((sum, lineItem) => sum + lineItem.totalCents, 0)
+          subtotal: lineItems.reduce((sum, lineItem) => sum + lineItem.total, 0)
         },
         this.profile()
       );
@@ -463,6 +552,26 @@ export class InvoiceDetailPageComponent {
     );
   }
 
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent): void {
+    if (!this.snapshotMenuOpen()) {
+      return;
+    }
+
+    const menuHost = this.snapshotMenuRef()?.nativeElement;
+
+    if (!menuHost || menuHost.contains(event.target as Node)) {
+      return;
+    }
+
+    this.snapshotMenuOpen.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  handleEscape(): void {
+    this.snapshotMenuOpen.set(false);
+  }
+
   private createLineItemGroup(lineItem?: Partial<JobLineItem>) {
     return this.fb.group(
       {
@@ -472,7 +581,7 @@ export class InvoiceDetailPageComponent {
         description: [lineItem?.description ?? '', Validators.required],
         quantity: [lineItem?.quantity ?? 1, [Validators.required, Validators.min(0)]],
         unitLabel: [lineItem?.unitLabel ?? 'hour', Validators.required],
-        unitPriceCents: [centsToDollarsAmount(lineItem?.unitPriceCents ?? 0), [Validators.required, Validators.min(0)]]
+        unitPrice: [normalizeAmount(lineItem?.unitPrice ?? 0), [Validators.required, Validators.min(0)]]
       },
       {
         validators: [this.customKindValidator()]
@@ -483,7 +592,7 @@ export class InvoiceDetailPageComponent {
   private serializeLineItems(): JobLineItem[] {
     return this.lineItems.controls.map((control) => {
       const quantity = Number(control.get('quantity')?.value ?? 0);
-      const unitPriceCents = normalizeDollarsToCents(control.get('unitPriceCents')?.value ?? 0);
+      const unitPrice = normalizeAmount(control.get('unitPrice')?.value ?? 0);
       const kind = control.get('kind')?.value;
       const kindLabel = control.get('kindLabel')?.value?.trim() ?? '';
 
@@ -494,8 +603,8 @@ export class InvoiceDetailPageComponent {
         description: control.get('description')?.value?.trim() ?? '',
         quantity,
         unitLabel: control.get('unitLabel')?.value?.trim() ?? '',
-        unitPriceCents,
-        totalCents: calculateLineTotal(quantity, unitPriceCents)
+        unitPrice,
+        total: calculateLineTotal(quantity, unitPrice)
       };
     });
   }

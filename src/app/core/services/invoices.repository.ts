@@ -44,7 +44,7 @@ export class InvoicesRepository {
         clientId: client.id,
         status: 'draft',
         lineItems,
-        subtotalCents: sumLineItems(lineItems),
+        subtotal: sumLineItems(lineItems),
         clientSnapshot: {
           displayName: client.displayName,
           companyName: client.companyName,
@@ -83,7 +83,7 @@ export class InvoicesRepository {
         clientId: sourceInvoice.clientId,
         status: 'draft',
         lineItems,
-        subtotalCents: sumLineItems(lineItems),
+        subtotal: sumLineItems(lineItems),
         clientSnapshot: sourceInvoice.clientSnapshot,
         jobSnapshot: sourceInvoice.jobSnapshot,
         issuedAt: null,
@@ -100,7 +100,7 @@ export class InvoicesRepository {
   async updateDraft(invoiceId: string, lineItems: JobLineItem[]): Promise<void> {
     await updateDoc(this.invoiceRef(this.session.requireUid(), invoiceId), {
       lineItems: this.cloneLineItems(lineItems),
-      subtotalCents: sumLineItems(lineItems),
+      subtotal: sumLineItems(lineItems),
       updatedAt: serverTimestamp()
     });
   }

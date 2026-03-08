@@ -47,8 +47,8 @@ export interface JobLineItem {
   description: string;
   quantity: number;
   unitLabel: string;
-  unitPriceCents: number;
-  totalCents: number;
+  unitPrice: number;
+  total: number;
 }
 
 export interface JobRecord {
@@ -114,7 +114,7 @@ export interface InvoiceRecord {
   clientId: string;
   status: InvoiceStatus;
   lineItems: JobLineItem[];
-  subtotalCents: number;
+  subtotal: number;
   clientSnapshot: InvoiceClientSnapshot;
   jobSnapshot: InvoiceJobSnapshot;
   businessSnapshot?: InvoiceBusinessSnapshot;
@@ -140,7 +140,7 @@ export interface HistoryEntry {
   clientId: string;
   primaryDate: string;
   secondaryDate?: string;
-  amountCents?: number;
+  amount?: number;
   route: string;
   archived: boolean;
 }

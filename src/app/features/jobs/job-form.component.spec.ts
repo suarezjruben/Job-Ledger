@@ -29,14 +29,14 @@ describe('JobFormComponent', () => {
     updatedAt: {} as never
   };
 
-  const buildLineItem = (id: string, description: string, totalCents: number) => ({
+  const buildLineItem = (id: string, description: string, total: number) => ({
     id,
     kind: 'labor' as const,
     description,
     quantity: 1,
     unitLabel: 'hour',
-    unitPriceCents: totalCents,
-    totalCents
+    unitPrice: total,
+    total
   });
 
   const baseJob: JobRecord = {
@@ -46,7 +46,7 @@ describe('JobFormComponent', () => {
     status: 'invoiced',
     startDate: '2026-03-07',
     endDate: '2026-03-07',
-    lineItems: [buildLineItem('line-1', 'Walls', 12000)],
+    lineItems: [buildLineItem('line-1', 'Walls', 120)],
     invoiceId: 'invoice-1',
     attachmentCount: 0,
     archivedAt: null,
@@ -60,8 +60,8 @@ describe('JobFormComponent', () => {
     jobId: baseJob.id,
     clientId: client.id,
     status: 'issued',
-    lineItems: [buildLineItem('line-1', 'Walls', 12000)],
-    subtotalCents: 12000,
+    lineItems: [buildLineItem('line-1', 'Walls', 120)],
+    subtotal: 120,
     clientSnapshot: {
       displayName: client.displayName
     },
@@ -156,7 +156,7 @@ describe('JobFormComponent', () => {
     component.addLineItem();
     component.lineItems.at(1).patchValue({
       description: 'Trim',
-      unitPriceCents: 45
+      unitPrice: 45
     });
     fixture.detectChanges();
 
@@ -167,7 +167,7 @@ describe('JobFormComponent', () => {
     component.addLineItem();
     component.lineItems.at(1).patchValue({
       description: 'Trim',
-      unitPriceCents: 45
+      unitPrice: 45
     });
 
     await component.createInvoice();
@@ -175,12 +175,12 @@ describe('JobFormComponent', () => {
     expect(jobsRepository.updateJob).toHaveBeenCalledWith(
       baseJob.id,
       jasmine.objectContaining({
-        lineItems: jasmine.arrayContaining([jasmine.objectContaining({ description: 'Trim', totalCents: 4500 })])
+        lineItems: jasmine.arrayContaining([jasmine.objectContaining({ description: 'Trim', total: 45 })])
       })
     );
     expect(invoiceWorkflow.createDraftForJob).toHaveBeenCalledWith(
       jasmine.objectContaining({
-        lineItems: jasmine.arrayContaining([jasmine.objectContaining({ description: 'Trim', totalCents: 4500 })])
+        lineItems: jasmine.arrayContaining([jasmine.objectContaining({ description: 'Trim', total: 45 })])
       }),
       client
     );

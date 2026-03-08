@@ -26,15 +26,18 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
 
       <div class="route-modal-shell route-modal-shell--narrow">
         <section class="page-grid single">
-          <article class="panel stack-lg">
-            <div class="page-header">
+          <article class="panel stack-lg modal-panel">
+            <div class="page-header modal-header">
               <div>
                 <p class="eyebrow">{{ 'clients.form.eyebrow' | translate }}</p>
                 <h2>{{ isEdit() ? ('clients.form.editTitle' | translate) : ('clients.form.createTitle' | translate) }}</h2>
               </div>
 
-              <button type="button" class="ghost-button" (click)="close()">
-                {{ 'common.close' | translate }}
+              <button type="button" class="ghost-button modal-close-button" (click)="close()">
+                <span class="modal-close-label">{{ 'common.close' | translate }}</span>
+                <svg class="modal-close-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18"></path>
+                </svg>
               </button>
             </div>
 

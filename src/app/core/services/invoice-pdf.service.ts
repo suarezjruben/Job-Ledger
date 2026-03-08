@@ -140,8 +140,8 @@ export class InvoicePdfService {
       document.text(lineItem.description, margin, cursorY);
       document.text(lineItem.unitLabel, margin + 270, cursorY);
       document.text(String(lineItem.quantity), margin + 360, cursorY, { align: 'right' });
-      document.text(toCurrency(lineItem.unitPriceCents), margin + 450, cursorY, { align: 'right' });
-      document.text(toCurrency(lineItem.totalCents), rightColumn, cursorY, { align: 'right' });
+      document.text(toCurrency(lineItem.unitPrice), margin + 450, cursorY, { align: 'right' });
+      document.text(toCurrency(lineItem.total), rightColumn, cursorY, { align: 'right' });
       cursorY += 18;
     }
 
@@ -150,7 +150,7 @@ export class InvoicePdfService {
     cursorY += 22;
     document.setFont('helvetica', 'bold');
     document.text(this.i18n.instant('common.subtotal'), rightColumn - 88, cursorY, { align: 'right' });
-    document.text(toCurrency(invoice.subtotalCents), rightColumn, cursorY, { align: 'right' });
+    document.text(toCurrency(invoice.subtotal), rightColumn, cursorY, { align: 'right' });
 
     return document.output('blob');
   }

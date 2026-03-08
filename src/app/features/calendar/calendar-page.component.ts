@@ -38,7 +38,7 @@ import {
   startOfMonth,
   weekdayLabels as buildWeekdayLabels
 } from '../../core/utils/date.utils';
-import { calculateLineTotal, normalizeCents, toCurrency, sumLineItems } from '../../core/utils/money.utils';
+import { calculateLineTotal, normalizeAmount, toCurrency, sumLineItems } from '../../core/utils/money.utils';
 import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component';
 
 interface CalendarNavigationState {
@@ -134,20 +134,20 @@ interface CalendarNavigationState {
     </section>
 
     <ng-template #selectedJobDetails let-job>
-      <div class="page-header calendar-dialog-header">
+      <div class="page-header calendar-dialog-header modal-header">
         <div>
           <p class="eyebrow">{{ 'calendar.selected.eyebrow' | translate }}</p>
           <h2>{{ job.title }}</h2>
         </div>
         <button
           type="button"
-          class="secondary-button calendar-dialog-close"
+          class="ghost-button modal-close-button"
           (click)="closeSelectedJob()"
           [attr.aria-label]="'common.close' | translate"
           [title]="'common.close' | translate"
         >
-          <span class="calendar-dialog-close-label">{{ 'common.close' | translate }}</span>
-          <svg class="calendar-dialog-close-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <span class="modal-close-label">{{ 'common.close' | translate }}</span>
+          <svg class="modal-close-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path [attr.d]="closeIcon"></path>
           </svg>
         </button>
@@ -672,8 +672,8 @@ interface CalendarNavigationState {
         position: fixed;
         inset: 1rem;
         z-index: 71;
-        width: min(72rem, calc(100vw - 2rem));
-        max-width: 72rem;
+        width: min(var(--modal-max-width), calc(100vw - 2rem));
+        max-width: var(--modal-max-width);
         max-height: calc(100vh - 2rem);
         margin: 0 auto;
         overflow: auto;
@@ -687,40 +687,9 @@ interface CalendarNavigationState {
 
       .panel.calendar-dialog.calendar-edit-dialog {
         z-index: 73;
-        width: min(80rem, calc(100vw - 2rem));
-        max-width: 80rem;
+        width: min(var(--modal-max-width), calc(100vw - 2rem));
+        max-width: var(--modal-max-width);
         padding: 0 1.4rem 1.4rem;
-      }
-
-      .calendar-dialog-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: start;
-        gap: 1rem;
-        position: sticky;
-        top: 0;
-        z-index: 6;
-        margin: 0 -1.4rem 0;
-        padding: 0.85rem 1.4rem;
-        background:
-          linear-gradient(180deg, var(--panel) 0%, color-mix(in srgb, var(--panel) 92%, transparent) 100%);
-        border-bottom: 1px solid var(--panel-border);
-        backdrop-filter: blur(18px);
-      }
-
-      .calendar-dialog-close {
-        flex-shrink: 0;
-      }
-
-      .calendar-dialog-close-icon {
-        display: none;
-        width: 1.1rem;
-        height: 1.1rem;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
       }
 
       @media (max-width: 980px) {
@@ -745,27 +714,6 @@ interface CalendarNavigationState {
           inset: 0.75rem;
           max-height: calc(100vh - 1.5rem);
         }
-
-        .calendar-dialog-header {
-          flex-direction: row;
-          align-items: start;
-        }
-
-        .calendar-dialog-close {
-          width: 2.75rem;
-          min-width: 2.75rem;
-          min-height: 2.75rem;
-          padding: 0;
-          border-radius: 999px;
-        }
-
-        .calendar-dialog-close-label {
-          display: none;
-        }
-
-        .calendar-dialog-close-icon {
-          display: block;
-        }
       }
     `
   ]
@@ -783,6 +731,8 @@ export class CalendarPageComponent {
   private readonly i18n = inject(AppI18nService);
   private readonly calendarGridRef = viewChild<ElementRef<HTMLElement>>('calendarGrid');
   private readonly thumbLoadingIds = new Set<string>();
+  private readonly previousBodyOverflow = this.document.body.style.overflow;
+  private readonly previousHtmlOverflow = this.document.documentElement.style.overflow;
 
   readonly visibleMonth = signal(startOfMonth(new Date()));
   readonly selectedJobId = signal<string | null>(null);
@@ -919,6 +869,18 @@ export class CalendarPageComponent {
         void this.loadThumb(jobId, image.id);
       }
     });
+
+    effect(() => {
+      const hasOpenModal = Boolean(this.selectedJob() || this.editingJobId());
+
+      this.document.body.style.overflow = hasOpenModal ? 'hidden' : this.previousBodyOverflow;
+      this.document.documentElement.style.overflow = hasOpenModal ? 'hidden' : this.previousHtmlOverflow;
+    });
+
+    this.destroyRef.onDestroy(() => {
+      this.document.body.style.overflow = this.previousBodyOverflow;
+      this.document.documentElement.style.overflow = this.previousHtmlOverflow;
+    });
   }
 
   shiftMonth(delta: number): void {
@@ -1012,7 +974,7 @@ export class CalendarPageComponent {
   }
 
   lineItemMeta(lineItem: JobLineItem): string {
-    return `${lineItem.quantity} ${lineItem.unitLabel} x ${toCurrency(lineItem.unitPriceCents)}`;
+    return `${lineItem.quantity} ${lineItem.unitLabel} x ${toCurrency(lineItem.unitPrice)}`;
   }
 
   lineItemKindLabel(lineItem: JobLineItem): string {
@@ -1024,7 +986,7 @@ export class CalendarPageComponent {
   }
 
   lineItemTotalLabel(lineItem: JobLineItem): string {
-    return toCurrency(lineItem.totalCents);
+    return toCurrency(lineItem.total);
   }
 
   canCreateInvoice(job: JobRecord): boolean {
@@ -1166,7 +1128,7 @@ export class CalendarPageComponent {
   private normalizeLineItems(lineItems: JobLineItem[]) {
     return lineItems.map((lineItem) => {
       const quantity = Number(lineItem.quantity ?? 0);
-      const unitPriceCents = normalizeCents(lineItem.unitPriceCents ?? 0);
+      const unitPrice = normalizeAmount(lineItem.unitPrice ?? 0);
 
       return {
         kind: lineItem.kind,
@@ -1174,8 +1136,8 @@ export class CalendarPageComponent {
         description: lineItem.description.trim(),
         quantity,
         unitLabel: lineItem.unitLabel.trim(),
-        unitPriceCents,
-        totalCents: calculateLineTotal(quantity, unitPriceCents)
+        unitPrice,
+        total: calculateLineTotal(quantity, unitPrice)
       };
     });
   }

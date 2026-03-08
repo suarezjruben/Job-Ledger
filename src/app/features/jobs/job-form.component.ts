@@ -32,9 +32,7 @@ import { JobImagesRepository } from '../../core/services/job-images.repository';
 import { JobsRepository, JobUpsertInput } from '../../core/services/jobs.repository';
 import {
   calculateLineTotal,
-  centsToDollarsAmount,
-  normalizeCents,
-  normalizeDollarsToCents,
+  normalizeAmount,
   toCurrency
 } from '../../core/utils/money.utils';
 import { valueOrUndefined } from '../../core/utils/object.utils';
@@ -237,7 +235,7 @@ export interface JobFormSavedEvent {
 
               <label class="field">
                 <span>{{ 'common.rate' | translate }}</span>
-                <input type="number" min="0" step="0.01" formControlName="unitPriceCents" />
+                <input type="number" min="0" step="0.01" formControlName="unitPrice" />
               </label>
 
               <div class="line-item-total">
@@ -768,7 +766,7 @@ export class JobFormComponent {
         description: '',
         quantity: 1,
         unitLabel: 'hour',
-        unitPriceCents: 0
+        unitPrice: 0
       });
       return;
     }
@@ -779,12 +777,12 @@ export class JobFormComponent {
   lineTotal(index: number): string {
     const group = this.lineItems.at(index);
     const quantity = Number(group.get('quantity')?.value ?? 0);
-    const unitPriceCents = normalizeDollarsToCents(group.get('unitPriceCents')?.value ?? 0);
-    return toCurrency(calculateLineTotal(quantity, unitPriceCents));
+    const unitPrice = normalizeAmount(group.get('unitPrice')?.value ?? 0);
+    return toCurrency(calculateLineTotal(quantity, unitPrice));
   }
 
   subtotal(): string {
-    return toCurrency(this.serializeLineItems().reduce((sum, lineItem) => sum + lineItem.totalCents, 0));
+    return toCurrency(this.serializeLineItems().reduce((sum, lineItem) => sum + lineItem.total, 0));
   }
 
   canCreateInvoice(): boolean {
@@ -1077,7 +1075,7 @@ export class JobFormComponent {
         description: [lineItem?.description ?? ''],
         quantity: [lineItem?.quantity ?? 1, [Validators.required, Validators.min(0)]],
         unitLabel: [lineItem?.unitLabel ?? 'hour', Validators.required],
-        unitPriceCents: [centsToDollarsAmount(lineItem?.unitPriceCents ?? 0), [Validators.required, Validators.min(0)]]
+        unitPrice: [normalizeAmount(lineItem?.unitPrice ?? 0), [Validators.required, Validators.min(0)]]
       },
       {
         validators: [this.optionalLineItemValidator()]
@@ -1089,7 +1087,7 @@ export class JobFormComponent {
     return this.lineItems.controls
       .map((control) => {
         const quantity = Number(control.get('quantity')?.value ?? 0);
-        const unitPriceCents = normalizeDollarsToCents(control.get('unitPriceCents')?.value ?? 0);
+        const unitPrice = normalizeAmount(control.get('unitPrice')?.value ?? 0);
         const kind = control.get('kind')?.value;
         const kindLabel = control.get('kindLabel')?.value?.trim() ?? '';
 
@@ -1100,8 +1098,8 @@ export class JobFormComponent {
           description: control.get('description')?.value?.trim() ?? '',
           quantity,
           unitLabel: control.get('unitLabel')?.value?.trim() ?? '',
-          unitPriceCents,
-          totalCents: calculateLineTotal(quantity, unitPriceCents)
+          unitPrice,
+          total: calculateLineTotal(quantity, unitPrice)
         };
       })
       .filter((lineItem) => !this.isBlankLineItemValue(lineItem));
@@ -1115,7 +1113,7 @@ export class JobFormComponent {
         description: control.get('description')?.value,
         quantity: control.get('quantity')?.value,
         unitLabel: control.get('unitLabel')?.value,
-        unitPriceCents: control.get('unitPriceCents')?.value
+        unitPrice: control.get('unitPrice')?.value
       };
 
       if (this.isBlankLineItemInputValue(value)) {
@@ -1140,9 +1138,9 @@ export class JobFormComponent {
     const kind = value.kind ?? 'labor';
     const quantity = Number(value.quantity ?? 1);
     const unitLabel = value.unitLabel?.trim() ?? 'hour';
-    const unitPriceCents = normalizeCents(value.unitPriceCents ?? 0);
+    const unitPrice = normalizeAmount(value.unitPrice ?? 0);
 
-    return !description && !kindLabel && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPriceCents === 0;
+    return !description && !kindLabel && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPrice === 0;
   }
 
   private isBlankLineItemInputValue(value: Partial<JobLineItem>): boolean {
@@ -1151,9 +1149,9 @@ export class JobFormComponent {
     const kind = value.kind ?? 'labor';
     const quantity = Number(value.quantity ?? 1);
     const unitLabel = value.unitLabel?.trim() ?? 'hour';
-    const unitPriceCents = normalizeDollarsToCents(value.unitPriceCents ?? 0);
+    const unitPrice = normalizeAmount(value.unitPrice ?? 0);
 
-    return !description && !kindLabel && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPriceCents === 0;
+    return !description && !kindLabel && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPrice === 0;
   }
 
   private lineItemsDiffer(currentLineItems: JobLineItem[], invoiceLineItems: JobLineItem[]): boolean {
@@ -1163,7 +1161,7 @@ export class JobFormComponent {
   private normalizeLineItems(lineItems: JobLineItem[]) {
     return lineItems.map((lineItem) => {
       const quantity = Number(lineItem.quantity ?? 0);
-      const unitPriceCents = normalizeCents(lineItem.unitPriceCents ?? 0);
+      const unitPrice = normalizeAmount(lineItem.unitPrice ?? 0);
 
       return {
         kind: lineItem.kind,
@@ -1171,8 +1169,8 @@ export class JobFormComponent {
         description: lineItem.description.trim(),
         quantity,
         unitLabel: lineItem.unitLabel.trim(),
-        unitPriceCents,
-        totalCents: calculateLineTotal(quantity, unitPriceCents)
+        unitPrice,
+        total: calculateLineTotal(quantity, unitPrice)
       };
     });
   }

@@ -29,14 +29,14 @@ describe('CalendarPageComponent', () => {
     updatedAt: {} as never
   };
 
-  const buildLineItem = (id: string, description: string, totalCents: number) => ({
+  const buildLineItem = (id: string, description: string, total: number) => ({
     id,
     kind: 'labor' as const,
     description,
     quantity: 1,
     unitLabel: 'hour',
-    unitPriceCents: totalCents,
-    totalCents
+    unitPrice: total,
+    total
   });
 
   const baseJob: JobRecord = {
@@ -46,7 +46,7 @@ describe('CalendarPageComponent', () => {
     status: 'invoiced',
     startDate: '2026-03-07',
     endDate: '2026-03-07',
-    lineItems: [buildLineItem('line-1', 'Walls', 12000)],
+    lineItems: [buildLineItem('line-1', 'Walls', 120)],
     invoiceId: 'invoice-1',
     attachmentCount: 0,
     archivedAt: null,
@@ -60,8 +60,8 @@ describe('CalendarPageComponent', () => {
     jobId: baseJob.id,
     clientId: client.id,
     status: 'issued',
-    lineItems: [buildLineItem('line-1', 'Walls', 12000)],
-    subtotalCents: 12000,
+    lineItems: [buildLineItem('line-1', 'Walls', 120)],
+    subtotal: 120,
     clientSnapshot: {
       displayName: client.displayName
     },
@@ -187,7 +187,7 @@ describe('CalendarPageComponent', () => {
     jobsSubject.next([
       {
         ...baseJob,
-        lineItems: [...baseJob.lineItems, buildLineItem('line-2', 'Trim', 4500)]
+        lineItems: [...baseJob.lineItems, buildLineItem('line-2', 'Trim', 45)]
       }
     ]);
     fixture.detectChanges();
