@@ -7,6 +7,7 @@ import {
   InvoiceRecord,
   JobRecord
 } from '../models';
+import { stripUndefined } from '../utils/object.utils';
 import { AppI18nService } from './app-i18n.service';
 import { BusinessProfileRepository } from './business-profile.repository';
 import { InvoicePdfService } from './invoice-pdf.service';
@@ -88,6 +89,6 @@ export class InvoiceWorkflowService {
       businessSnapshot.mailingAddress = profile.mailingAddress;
     }
 
-    return businessSnapshot;
+    return stripUndefined(businessSnapshot);
   }
 }

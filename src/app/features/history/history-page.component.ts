@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HistoryEntry } from '../../core/models';
+import { HistoryEntry, InvoiceStatus, JobStatus } from '../../core/models';
 import { AppI18nService } from '../../core/services/app-i18n.service';
 import { ClientsRepository } from '../../core/services/clients.repository';
 import { InvoicesRepository } from '../../core/services/invoices.repository';
@@ -81,7 +81,9 @@ import { toCurrency } from '../../core/utils/money.utils';
                     <h3>{{ entry.title }}</h3>
                     <p>{{ entry.subtitle }}</p>
                   </div>
-                  <a class="text-link" [routerLink]="entry.route">{{ 'common.open' | translate }}</a>
+                  <a class="text-link" [routerLink]="entry.route" [queryParams]="entry.queryParams">
+                    {{ 'common.open' | translate }}
+                  </a>
                 </div>
 
                 <div class="tag-row">
@@ -137,6 +139,7 @@ export class HistoryPageComponent {
         secondaryDate: job.endDate,
         amount: job.lineItems.reduce((sum, lineItem) => sum + lineItem.total, 0),
         route: `/jobs/${job.id}`,
+        queryParams: this.historyQueryParamsForJob(job.status),
         archived: Boolean(job.archivedAt)
       })),
       ...this.invoices().map((invoice) => ({
@@ -152,6 +155,7 @@ export class HistoryPageComponent {
           '',
         amount: invoice.subtotal,
         route: `/invoices/${invoice.id}`,
+        queryParams: this.historyQueryParamsForInvoice(invoice.status),
         archived: Boolean(invoice.archivedAt)
       }))
     ];
@@ -180,5 +184,19 @@ export class HistoryPageComponent {
 
   statusLabel(entry: HistoryEntry): string {
     return this.i18n.instant(`${entry.kind === 'job' ? 'jobStatus' : 'invoiceStatus'}.${entry.status}`);
+  }
+
+  private historyQueryParamsForJob(status: JobStatus): Record<string, string> {
+    return {
+      source: 'history',
+      ...(status === 'completed' || status === 'canceled' ? { readonly: '1' } : {})
+    };
+  }
+
+  private historyQueryParamsForInvoice(status: InvoiceStatus): Record<string, string> {
+    return {
+      source: 'history',
+      ...(status === 'paid' || status === 'void' ? { readonly: '1' } : {})
+    };
   }
 }

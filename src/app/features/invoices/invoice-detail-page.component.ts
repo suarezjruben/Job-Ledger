@@ -109,7 +109,7 @@ import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/util
                     <div class="line-item-grid" [formGroupName]="i">
                       <label class="field">
                         <span>{{ 'common.description' | translate }}</span>
-                        <input type="text" formControlName="description" [readonly]="!isDraft()" />
+                        <input type="text" formControlName="description" [readonly]="!canEditDraft()" />
                       </label>
 
                       <label class="field">
@@ -118,7 +118,7 @@ import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/util
                           [attr.id]="'invoice-line-kind-' + i"
                           [attr.name]="'invoiceLineKind-' + i"
                           formControlName="kind"
-                          [disabled]="!isDraft()"
+                          [disabled]="!canEditDraft()"
                         >
                           <option value="labor">{{ 'lineItemKinds.labor' | translate }}</option>
                           <option value="material">{{ 'lineItemKinds.material' | translate }}</option>
@@ -129,28 +129,28 @@ import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/util
                       @if (lineItem.get('kind')?.value === 'custom') {
                         <label class="field">
                           <span>{{ 'common.customKind' | translate }}</span>
-                          <input type="text" formControlName="kindLabel" [readonly]="!isDraft()" />
+                          <input type="text" formControlName="kindLabel" [readonly]="!canEditDraft()" />
                         </label>
                       }
 
                       <label class="field">
                         <span>{{ 'common.unitLabel' | translate }}</span>
-                        <input type="text" formControlName="unitLabel" [readonly]="!isDraft()" />
+                        <input type="text" formControlName="unitLabel" [readonly]="!canEditDraft()" />
                       </label>
 
                       <label class="field">
                         <span>{{ 'common.quantity' | translate }}</span>
-                        <input type="number" min="0" step="0.25" formControlName="quantity" [readonly]="!isDraft()" />
+                        <input type="number" min="0" step="0.25" formControlName="quantity" [readonly]="!canEditDraft()" />
                       </label>
 
                       <label class="field">
                         <span>{{ 'common.rate' | translate }}</span>
-                        <input type="number" min="0" step="0.01" formControlName="unitPrice" [readonly]="!isDraft()" />
+                        <input type="number" min="0" step="0.01" formControlName="unitPrice" [readonly]="!canEditDraft()" />
                       </label>
 
                       <div class="line-item-total">
                         <strong>{{ lineTotal(i) }}</strong>
-                        @if (isDraft()) {
+                        @if (canEditDraft()) {
                           <button type="button" class="ghost-button" (click)="removeLineItem(i)">
                             {{ 'common.remove' | translate }}
                           </button>
@@ -160,7 +160,7 @@ import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/util
                   }
                 </div>
 
-                @if (isDraft()) {
+                @if (canEditDraft()) {
                   <button type="button" class="secondary-button" (click)="addLineItem()">
                     {{ 'invoices.detail.addLineItem' | translate }}
                   </button>
@@ -176,7 +176,7 @@ import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/util
                 }
 
                 <div class="actions wrap">
-                  @if (isDraft()) {
+                  @if (canEditDraft()) {
                     <button type="submit" class="secondary-button" [disabled]="saving()">
                       {{ saving() ? ('common.saving' | translate) : ('invoices.detail.saveDraft' | translate) }}
                     </button>
@@ -192,7 +192,7 @@ import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/util
                       {{ 'common.downloadPdf' | translate }}
                     </button>
 
-                    @if (invoice.status === 'issued') {
+                    @if (!readonlyMode() && invoice.status === 'issued') {
                       <button type="button" class="primary-button" (click)="markPaid()">
                         {{ 'invoices.detail.markPaid' | translate }}
                       </button>
@@ -201,13 +201,13 @@ import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/util
                       </button>
                     }
 
-                    @if (invoice.status === 'paid') {
+                    @if (!readonlyMode() && invoice.status === 'paid') {
                       <button type="button" class="ghost-button" (click)="archive()">
                         {{ 'common.archive' | translate }}
                       </button>
                     }
 
-                    @if (invoice.status === 'void') {
+                    @if (!readonlyMode() && invoice.status === 'void') {
                       <button type="button" class="primary-button" (click)="createReplacement()">
                         {{ 'invoices.detail.createReplacement' | translate }}
                       </button>
@@ -259,7 +259,8 @@ import { calculateLineTotal, normalizeAmount, toCurrency } from '../../core/util
 
       .panel.invoice-detail-panel {
         max-height: calc(100vh - 2rem);
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
         overscroll-behavior: contain;
       }
 
@@ -349,6 +350,13 @@ export class InvoiceDetailPageComponent {
     ),
     { initialValue: undefined }
   );
+  readonly readonlyMode = toSignal(
+    this.route.queryParamMap.pipe(map((params) => this.parseReadonlyFlag(params.get('readonly')))),
+    { initialValue: this.parseReadonlyFlag(this.route.snapshot.queryParamMap.get('readonly')) }
+  );
+  readonly source = toSignal(this.route.queryParamMap.pipe(map((params) => params.get('source') ?? '')), {
+    initialValue: this.route.snapshot.queryParamMap.get('source') ?? ''
+  });
 
   readonly profile = toSignal(this.businessProfiles.observeProfile(), { initialValue: null });
   readonly saving = signal(false);
@@ -363,7 +371,9 @@ export class InvoiceDetailPageComponent {
     lineItems: this.fb.array([])
   });
 
-  readonly isDraft = computed(() => this.invoice()?.status === 'draft');
+  readonly canEditDraft = computed(
+    () => this.invoice()?.status === 'draft' && !this.readonlyMode()
+  );
 
   constructor() {
     effect(() => {
@@ -379,6 +389,12 @@ export class InvoiceDetailPageComponent {
       for (const lineItem of invoice.lineItems) {
         this.lineItems.push(this.createLineItemGroup(lineItem));
       }
+
+      this.syncFormInteractivity();
+    });
+
+    effect(() => {
+      this.syncFormInteractivity();
     });
   }
 
@@ -419,7 +435,7 @@ export class InvoiceDetailPageComponent {
   }
 
   async saveDraft(): Promise<void> {
-    if (!this.isDraft() || !this.invoice()) {
+    if (!this.canEditDraft() || !this.invoice()) {
       return;
     }
 
@@ -442,7 +458,7 @@ export class InvoiceDetailPageComponent {
   }
 
   async issueInvoice(): Promise<void> {
-    if (!this.invoice()) {
+    if (!this.canEditDraft() || !this.invoice()) {
       return;
     }
 
@@ -486,7 +502,7 @@ export class InvoiceDetailPageComponent {
   }
 
   async markPaid(): Promise<void> {
-    if (!this.invoice()) {
+    if (this.readonlyMode() || !this.invoice()) {
       return;
     }
 
@@ -498,7 +514,7 @@ export class InvoiceDetailPageComponent {
   }
 
   async voidInvoice(): Promise<void> {
-    if (!this.invoice()) {
+    if (this.readonlyMode() || !this.invoice()) {
       return;
     }
 
@@ -510,7 +526,7 @@ export class InvoiceDetailPageComponent {
   }
 
   async archive(): Promise<void> {
-    if (!this.invoice()) {
+    if (this.readonlyMode() || !this.invoice()) {
       return;
     }
 
@@ -523,7 +539,7 @@ export class InvoiceDetailPageComponent {
   }
 
   async createReplacement(): Promise<void> {
-    if (!this.invoice()) {
+    if (this.readonlyMode() || !this.invoice()) {
       return;
     }
 
@@ -538,6 +554,11 @@ export class InvoiceDetailPageComponent {
   async close(): Promise<void> {
     if (this.shouldUseHistoryBack()) {
       this.location.back();
+      return;
+    }
+
+    if (this.source() === 'history') {
+      await this.router.navigate(['/history']);
       return;
     }
 
@@ -573,7 +594,7 @@ export class InvoiceDetailPageComponent {
   }
 
   private createLineItemGroup(lineItem?: Partial<JobLineItem>) {
-    return this.fb.group(
+    const group = this.fb.group(
       {
         id: [lineItem?.id ?? crypto.randomUUID()],
         kind: [lineItem?.kind ?? 'labor', Validators.required],
@@ -587,6 +608,12 @@ export class InvoiceDetailPageComponent {
         validators: [this.customKindValidator()]
       }
     );
+
+    if (!this.canEditDraft()) {
+      group.disable({ emitEvent: false });
+    }
+
+    return group;
   }
 
   private serializeLineItems(): JobLineItem[] {
@@ -599,12 +626,12 @@ export class InvoiceDetailPageComponent {
       return {
         id: control.get('id')?.value ?? crypto.randomUUID(),
         kind,
-        kindLabel: kind === 'custom' ? kindLabel : undefined,
         description: control.get('description')?.value?.trim() ?? '',
         quantity,
         unitLabel: control.get('unitLabel')?.value?.trim() ?? '',
         unitPrice,
-        total: calculateLineTotal(quantity, unitPrice)
+        total: calculateLineTotal(quantity, unitPrice),
+        ...(kind === 'custom' ? { kindLabel } : {})
       };
     });
   }
@@ -619,7 +646,20 @@ export class InvoiceDetailPageComponent {
     };
   }
 
+  private syncFormInteractivity(): void {
+    if (this.canEditDraft()) {
+      this.form.enable({ emitEvent: false });
+      return;
+    }
+
+    this.form.disable({ emitEvent: false });
+  }
+
   private shouldUseHistoryBack(): boolean {
     return (this.document.defaultView?.history.state?.navigationId ?? 0) > 1;
+  }
+
+  private parseReadonlyFlag(value: string | null): boolean {
+    return value === '1' || value === 'true';
   }
 }

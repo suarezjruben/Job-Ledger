@@ -304,33 +304,35 @@ interface CalendarNavigationState {
           <span class="page-note">{{ 'jobs.images.count' | translate:{ count: selectedImages().length } }}</span>
         </div>
 
-        <div class="image-grid">
-          @for (image of selectedImages(); track image.id) {
-            <button
-              type="button"
-              class="image-thumb-button"
-              (click)="openImage(image)"
-              [attr.aria-label]="'common.open' | translate"
-              [title]="'common.open' | translate"
-            >
-              @if (thumbUrls()[image.id]; as thumbUrl) {
-                <img
-                  class="image-thumb"
-                  [src]="thumbUrl"
-                  [alt]="'jobs.images.thumbnailAlt' | translate"
-                  loading="lazy"
-                />
-              } @else {
-                <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
-              }
-            </button>
-          } @empty {
-            <div class="empty-state compact">
-              <h3>{{ 'jobs.images.empty.title' | translate }}</h3>
-              <p>{{ 'jobs.images.empty.body' | translate }}</p>
-            </div>
-          }
-        </div>
+        @if (selectedImages().length) {
+          <div class="image-grid">
+            @for (image of selectedImages(); track image.id) {
+              <button
+                type="button"
+                class="image-thumb-button"
+                (click)="openImage(image)"
+                [attr.aria-label]="'common.open' | translate"
+                [title]="'common.open' | translate"
+              >
+                @if (thumbUrls()[image.id]; as thumbUrl) {
+                  <img
+                    class="image-thumb"
+                    [src]="thumbUrl"
+                    [alt]="'jobs.images.thumbnailAlt' | translate"
+                    loading="lazy"
+                  />
+                } @else {
+                  <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
+                }
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="empty-state compact image-empty-state">
+            <h3>{{ 'jobs.images.empty.title' | translate }}</h3>
+            <p>{{ 'jobs.images.empty.body' | translate }}</p>
+          </div>
+        }
       </section>
 
       <div class="actions wrap calendar-detail-actions">
@@ -603,6 +605,10 @@ interface CalendarNavigationState {
         gap: 0.75rem;
       }
 
+      .image-empty-state {
+        width: 100%;
+      }
+
       .image-thumb-button {
         display: block;
         padding: 0;
@@ -676,7 +682,8 @@ interface CalendarNavigationState {
         max-width: var(--modal-max-width);
         max-height: calc(100vh - 2rem);
         margin: 0 auto;
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
         padding: 0 1.4rem 1.4rem;
       }
 

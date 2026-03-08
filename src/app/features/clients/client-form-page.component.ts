@@ -24,9 +24,9 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
         [attr.aria-label]="'common.close' | translate"
       ></button>
 
-      <div class="route-modal-shell route-modal-shell--narrow">
+      <div class="route-modal-shell route-modal-shell--narrow client-form-shell">
         <section class="page-grid single">
-          <article class="panel stack-lg modal-panel">
+          <article class="panel stack-lg modal-panel client-form-panel">
             <div class="page-header modal-header">
               <div>
                 <p class="eyebrow">{{ 'clients.form.eyebrow' | translate }}</p>
@@ -145,7 +145,21 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
         </section>
       </div>
     </section>
-  `
+  `,
+  styles: [
+    `
+      .client-form-shell {
+        overflow: hidden;
+      }
+
+      .panel.client-form-panel {
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+      }
+    `
+  ]
 })
 export class ClientFormPageComponent {
   private readonly fb = inject(FormBuilder);

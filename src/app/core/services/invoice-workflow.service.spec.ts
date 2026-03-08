@@ -180,4 +180,33 @@ describe('InvoiceWorkflowService', () => {
     );
     expect(pdf.triggerDownload).toHaveBeenCalledWith(blob, `${invoice.invoiceNumber}.pdf`);
   });
+
+  it('removes undefined fields from the frozen business snapshot before finalizing', async () => {
+    const blob = new Blob(['pdf'], { type: 'application/pdf' });
+    const profileWithUndefinedAddressField: BusinessProfile = {
+      ...profile,
+      mailingAddress: {
+        ...profile.mailingAddress!,
+        line2: undefined
+      }
+    };
+
+    pdf.buildInvoicePdf.and.returnValue(blob);
+    invoices.finalizeInvoice.and.resolveTo();
+    jobs.setJobInvoice.and.resolveTo();
+
+    await service.finalizeInvoice(invoice, profileWithUndefinedAddressField);
+
+    const [, frozenSnapshot] = invoices.finalizeInvoice.calls.mostRecent().args;
+
+    expect(frozenSnapshot.businessName).toBe('Job Ledger LLC');
+    expect(frozenSnapshot.contactEmail).toBe('owner@example.com');
+    expect(frozenSnapshot.mailingAddress).toEqual({
+      line1: '123 Main St',
+      city: 'Austin',
+      state: 'TX',
+      postalCode: '78701'
+    });
+    expect('line2' in (frozenSnapshot.mailingAddress ?? {})).toBeFalse();
+  });
 });

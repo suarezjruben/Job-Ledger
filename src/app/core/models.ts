@@ -142,5 +142,6 @@ export interface HistoryEntry {
   secondaryDate?: string;
   amount?: number;
   route: string;
+  queryParams?: Record<string, string>;
   archived: boolean;
 }

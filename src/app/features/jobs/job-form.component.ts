@@ -70,48 +70,56 @@ export interface JobFormSavedEvent {
               <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
                 {{ 'jobs.form.viewInvoice' | translate }}
               </a>
-              <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
-                {{ 'common.delete' | translate }}
-              </button>
-              @if (canCreateInvoice()) {
-                <button type="button" class="secondary-button" (click)="createInvoice()">
-                  {{ 'jobs.form.createUpdatedInvoice' | translate }}
-                </button>
-              }
-            } @else {
-              @if (canCreateInvoice()) {
-                <button type="button" class="secondary-button" (click)="createInvoice()">
-                  {{
-                    job.invoiceId
-                      ? ('jobs.form.createUpdatedInvoice' | translate)
-                      : ('jobs.form.createInvoice' | translate)
-                  }}
-                </button>
-              }
-              @if (job.invoiceId) {
+              @if (!isReadonly()) {
                 <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
                   {{ 'common.delete' | translate }}
                 </button>
+                @if (canCreateInvoice()) {
+                  <button type="button" class="secondary-button" (click)="createInvoice()">
+                    {{ 'jobs.form.createUpdatedInvoice' | translate }}
+                  </button>
+                }
+              }
+            } @else {
+              @if (!isReadonly()) {
+                @if (canCreateInvoice()) {
+                  <button type="button" class="secondary-button" (click)="createInvoice()">
+                    {{
+                      job.invoiceId
+                        ? ('jobs.form.createUpdatedInvoice' | translate)
+                        : ('jobs.form.createInvoice' | translate)
+                    }}
+                  </button>
+                }
+                @if (job.invoiceId) {
+                  <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
+                    {{ 'common.delete' | translate }}
+                  </button>
+                }
               }
             }
 
-            @if (job.archivedAt) {
-              <button type="button" class="ghost-button" (click)="restoreJob()">
-                {{ 'common.restore' | translate }}
-              </button>
-            } @else {
-              <button type="button" class="ghost-button" (click)="archiveJob()">
-                {{ 'common.archive' | translate }}
-              </button>
+            @if (!isReadonly()) {
+              @if (job.archivedAt) {
+                <button type="button" class="ghost-button" (click)="restoreJob()">
+                  {{ 'common.restore' | translate }}
+                </button>
+              } @else {
+                <button type="button" class="ghost-button" (click)="archiveJob()">
+                  {{ 'common.archive' | translate }}
+                </button>
+              }
             }
           }
 
           <button type="button" class="ghost-button" (click)="requestClose()">
-            {{ 'common.cancel' | translate }}
+            {{ (isReadonly() ? 'common.close' : 'common.cancel') | translate }}
           </button>
-          <button type="submit" class="primary-button" [disabled]="saving()">
-            {{ submitLabel() }}
-          </button>
+          @if (!isReadonly()) {
+            <button type="submit" class="primary-button" [disabled]="saving()">
+              {{ submitLabel() }}
+            </button>
+          }
         </div>
       </div>
 
@@ -190,9 +198,11 @@ export interface JobFormSavedEvent {
       <div class="stack-md">
         <div class="section-heading">
           <h3>{{ 'jobs.form.lineItems.title' | translate }}</h3>
-          <button type="button" class="secondary-button" (click)="addLineItem()">
-            {{ 'jobs.form.lineItems.add' | translate }}
-          </button>
+          @if (!isReadonly()) {
+            <button type="button" class="secondary-button" (click)="addLineItem()">
+              {{ 'jobs.form.lineItems.add' | translate }}
+            </button>
+          }
         </div>
 
         <div class="stack-md" formArrayName="lineItems">
@@ -240,9 +250,11 @@ export interface JobFormSavedEvent {
 
               <div class="line-item-total">
                 <strong>{{ lineTotal(i) }}</strong>
-                <button type="button" class="ghost-button" (click)="removeLineItem(i)">
-                  {{ 'common.remove' | translate }}
-                </button>
+                @if (!isReadonly()) {
+                  <button type="button" class="ghost-button" (click)="removeLineItem(i)">
+                    {{ 'common.remove' | translate }}
+                  </button>
+                }
               </div>
             </div>
           }
@@ -272,17 +284,19 @@ export interface JobFormSavedEvent {
         </div>
 
         <div class="image-picker-strip">
-          <label class="image-picker-tile" [title]="'jobs.images.uploadLabel' | translate">
-            <input
-              class="visually-hidden"
-              type="file"
-              accept="image/*"
-              (change)="stageImage($event)"
-            />
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path [attr.d]="plusIcon"></path>
-            </svg>
-          </label>
+          @if (!isReadonly()) {
+            <label class="image-picker-tile" [title]="'jobs.images.uploadLabel' | translate">
+              <input
+                class="visually-hidden"
+                type="file"
+                accept="image/*"
+                (change)="stageImage($event)"
+              />
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path [attr.d]="plusIcon"></path>
+              </svg>
+            </label>
+          }
 
           @for (draft of stagedImages(); track draft.id) {
             <article class="image-staged-tile" [title]="draft.file.name">
@@ -292,17 +306,19 @@ export interface JobFormSavedEvent {
                 [alt]="'jobs.images.thumbnailAlt' | translate"
                 loading="lazy"
               />
-              <button
-                type="button"
-                class="image-tile-remove"
-                (click)="removeStagedImage(draft.id)"
-                [attr.aria-label]="'common.delete' | translate"
-                [title]="'common.delete' | translate"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path [attr.d]="closeIcon"></path>
-                </svg>
-              </button>
+              @if (!isReadonly()) {
+                <button
+                  type="button"
+                  class="image-tile-remove"
+                  (click)="removeStagedImage(draft.id)"
+                  [attr.aria-label]="'common.delete' | translate"
+                  [title]="'common.delete' | translate"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="closeIcon"></path>
+                  </svg>
+                </button>
+              }
             </article>
           }
 
@@ -326,17 +342,19 @@ export interface JobFormSavedEvent {
                 } @else {
                   <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
                 }
-                <button
-                  type="button"
-                  class="image-tile-remove"
-                  (click)="deleteImage(image)"
-                  [attr.aria-label]="'common.delete' | translate"
-                  [title]="'common.delete' | translate"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path [attr.d]="closeIcon"></path>
-                  </svg>
-                </button>
+                @if (!isReadonly()) {
+                  <button
+                    type="button"
+                    class="image-tile-remove"
+                    (click)="deleteImage(image)"
+                    [attr.aria-label]="'common.delete' | translate"
+                    [title]="'common.delete' | translate"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path [attr.d]="closeIcon"></path>
+                    </svg>
+                  </button>
+                }
               </article>
             }
           }
@@ -565,6 +583,7 @@ export class JobFormComponent {
   readonly initialStartDate = input('');
   readonly initialEndDate = input('');
   readonly initialError = input<string | null>(null);
+  readonly readonlyMode = input(false);
   readonly showExistingActions = input(false);
 
   readonly cancelled = output<void>();
@@ -605,6 +624,7 @@ export class JobFormComponent {
   });
 
   readonly isEdit = computed(() => Boolean(this.jobId()));
+  readonly isReadonly = computed(() => this.readonlyMode());
   readonly activeClients = computed(() => this.clients().filter((client) => !client.archivedAt));
   readonly pageTitle = computed(() =>
     this.isEdit() ? this.i18n.instant('jobs.form.editTitle') : this.i18n.instant('jobs.form.createTitle')
@@ -655,6 +675,7 @@ export class JobFormComponent {
 
     effect(() => {
       const job = this.currentJob();
+      const isReadonly = this.isReadonly();
 
       if (!job || this.lastPatchedJobId() === job.id) {
         return;
@@ -666,7 +687,7 @@ export class JobFormComponent {
         title: job.title,
         startDate: job.startDate,
         endDate: job.endDate,
-        status: job.status === 'archived' ? 'scheduled' : job.status,
+        status: isReadonly ? job.status : job.status === 'archived' ? 'scheduled' : job.status,
         line1: job.address?.line1 ?? '',
         line2: job.address?.line2 ?? '',
         city: job.address?.city ?? '',
@@ -748,6 +769,15 @@ export class JobFormComponent {
         void this.loadThumb(jobId, image.id);
       }
     });
+
+    effect(() => {
+      if (this.isReadonly()) {
+        this.form.disable({ emitEvent: false });
+        return;
+      }
+
+      this.form.enable({ emitEvent: false });
+    });
   }
 
   get lineItems(): FormArray {
@@ -755,10 +785,18 @@ export class JobFormComponent {
   }
 
   addLineItem(): void {
+    if (this.isReadonly()) {
+      return;
+    }
+
     this.lineItems.push(this.createLineItemGroup());
   }
 
   removeLineItem(index: number): void {
+    if (this.isReadonly()) {
+      return;
+    }
+
     if (this.lineItems.length === 1) {
       this.lineItems.at(0).reset({
         kind: 'labor',
@@ -786,6 +824,10 @@ export class JobFormComponent {
   }
 
   canCreateInvoice(): boolean {
+    if (this.isReadonly()) {
+      return false;
+    }
+
     const job = this.currentJob();
     const currentInvoice = this.currentInvoice();
     const status = (this.form.get('status')?.value as JobStatus | null) ?? job?.status;
@@ -803,6 +845,10 @@ export class JobFormComponent {
   }
 
   async save(): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     this.error.set('');
     this.message.set('');
 
@@ -850,6 +896,10 @@ export class JobFormComponent {
   }
 
   async createInvoice(): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const job = this.currentJob();
 
     if (!job || !this.canCreateInvoice()) {
@@ -879,6 +929,10 @@ export class JobFormComponent {
   }
 
   async deleteInvoice(job: JobRecord): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     if (!job.invoiceId) {
       return;
     }
@@ -907,6 +961,10 @@ export class JobFormComponent {
   }
 
   stageImage(event: Event): void {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
@@ -939,6 +997,10 @@ export class JobFormComponent {
   }
 
   removeStagedImage(stagedImageId: string): void {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const stagedImage = this.stagedImages().find((entry) => entry.id === stagedImageId);
 
     if (!stagedImage) {
@@ -967,6 +1029,10 @@ export class JobFormComponent {
   }
 
   async deleteImage(image: JobImageRecord): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const jobId = this.jobId();
 
     if (!jobId) {
@@ -993,6 +1059,10 @@ export class JobFormComponent {
   }
 
   async archiveJob(): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const jobId = this.jobId();
 
     if (!jobId) {
@@ -1008,6 +1078,10 @@ export class JobFormComponent {
   }
 
   async restoreJob(): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const jobId = this.jobId();
 
     if (!jobId) {

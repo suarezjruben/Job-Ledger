@@ -98,20 +98,28 @@ export class InvoicesRepository {
   }
 
   async updateDraft(invoiceId: string, lineItems: JobLineItem[]): Promise<void> {
-    await updateDoc(this.invoiceRef(this.session.requireUid(), invoiceId), {
-      lineItems: this.cloneLineItems(lineItems),
-      subtotal: sumLineItems(lineItems),
-      updatedAt: serverTimestamp()
-    });
+    const sanitizedLineItems = this.cloneLineItems(lineItems);
+
+    await updateDoc(
+      this.invoiceRef(this.session.requireUid(), invoiceId),
+      stripUndefined({
+        lineItems: sanitizedLineItems,
+        subtotal: sumLineItems(sanitizedLineItems),
+        updatedAt: serverTimestamp()
+      }) as Partial<InvoiceRecord>
+    );
   }
 
   async finalizeInvoice(invoiceId: string, businessSnapshot: InvoiceBusinessSnapshot): Promise<void> {
-    await updateDoc(this.invoiceRef(this.session.requireUid(), invoiceId), {
-      status: 'issued',
-      issuedAt: serverTimestamp(),
-      businessSnapshot,
-      updatedAt: serverTimestamp()
-    });
+    await updateDoc(
+      this.invoiceRef(this.session.requireUid(), invoiceId),
+      stripUndefined({
+        status: 'issued',
+        issuedAt: serverTimestamp(),
+        businessSnapshot,
+        updatedAt: serverTimestamp()
+      }) as Partial<InvoiceRecord>
+    );
   }
 
   async markPaid(invoiceId: string): Promise<void> {
@@ -150,7 +158,7 @@ export class InvoicesRepository {
   }
 
   private cloneLineItems(lineItems: JobLineItem[]): JobLineItem[] {
-    return lineItems.map((lineItem) => ({ ...lineItem }));
+    return lineItems.map((lineItem) => stripUndefined({ ...lineItem }) as JobLineItem);
   }
 
   private invoicesCollection(uid: string): CollectionReference<InvoiceRecord> {
