@@ -11,7 +11,7 @@ import {
   viewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { of, switchMap } from 'rxjs';
@@ -43,7 +43,7 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
 @Component({
   selector: 'app-calendar-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslatePipe, JobFormComponent],
+  imports: [CommonModule, TranslatePipe, JobFormComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid single">
@@ -238,9 +238,9 @@ import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component'
               <strong>{{ 'jobs.invoiceNumber' | translate }} {{ invoice.invoiceNumber }}</strong>
               <p>{{ ('invoiceStatus.' + invoice.status) | translate }}</p>
             </div>
-            <a class="secondary-button" [routerLink]="['/invoices', invoice.id]" (click)="closeSelectedJob()">
+            <button type="button" class="secondary-button" (click)="viewInvoice(invoice.id)">
               {{ 'calendar.selected.viewInvoice' | translate }}
-            </a>
+            </button>
           </article>
         } @else {
           <div class="empty-state compact">
@@ -882,6 +882,23 @@ export class CalendarPageComponent {
     this.error.set('');
     this.editingJobId.set(null);
     this.selectedJobId.set(null);
+  }
+
+  async viewInvoice(invoiceId: string): Promise<void> {
+    this.error.set('');
+
+    try {
+      const navigated = await this.router.navigate(['/invoices', invoiceId]);
+
+      if (navigated) {
+        this.closeSelectedJob();
+        return;
+      }
+
+      this.error.set(this.i18n.instant('calendar.errors.viewInvoice'));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('calendar.errors.viewInvoice'));
+    }
   }
 
   clientName(clientId: string): string {

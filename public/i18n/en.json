@@ -189,7 +189,8 @@
     },
     "errors": {
       "missingClient": "This job is missing a client record.",
-      "createInvoice": "Unable to create invoice."
+      "createInvoice": "Unable to create invoice.",
+      "viewInvoice": "Unable to open invoice."
     }
   },
   "clients": {

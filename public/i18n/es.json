@@ -189,7 +189,8 @@
     },
     "errors": {
       "missingClient": "A este trabajo le falta el registro del cliente.",
-      "createInvoice": "No se pudo crear la factura."
+      "createInvoice": "No se pudo crear la factura.",
+      "viewInvoice": "No se pudo abrir la factura."
     }
   },
   "clients": {
