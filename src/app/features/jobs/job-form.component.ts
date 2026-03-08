@@ -2,12 +2,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
+  HostListener,
   computed,
   effect,
   inject,
   input,
   output,
-  signal
+  signal,
+  viewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormArray, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
@@ -65,60 +68,158 @@ export interface JobFormSavedEvent {
         </div>
 
         <div class="actions wrap job-form-header-actions">
-          @if (showExistingJobActions() && currentJob(); as job) {
-            @if (job.invoiceId && currentInvoice()) {
-              <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
-                {{ 'jobs.form.viewInvoice' | translate }}
-              </a>
-              @if (!isReadonly()) {
-                <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
-                  {{ 'common.delete' | translate }}
-                </button>
-                @if (canCreateInvoice()) {
-                  <button type="button" class="secondary-button" (click)="createInvoice()">
-                    {{ 'jobs.form.createUpdatedInvoice' | translate }}
-                  </button>
-                }
-              }
-            } @else {
-              @if (!isReadonly()) {
-                @if (canCreateInvoice()) {
-                  <button type="button" class="secondary-button" (click)="createInvoice()">
-                    {{
-                      job.invoiceId
-                        ? ('jobs.form.createUpdatedInvoice' | translate)
-                        : ('jobs.form.createInvoice' | translate)
-                    }}
-                  </button>
-                }
-                @if (job.invoiceId) {
+          <div class="actions wrap job-form-header-buttons" [class.job-form-header-buttons--mobile-menu]="useHistoryActionMenu()">
+            @if (showExistingJobActions() && currentJob(); as job) {
+              @if (job.invoiceId && currentInvoice()) {
+                <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
+                  {{ 'jobs.form.viewInvoice' | translate }}
+                </a>
+                @if (!isReadonly()) {
                   <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
                     {{ 'common.delete' | translate }}
                   </button>
+                  @if (canCreateInvoice()) {
+                    <button type="button" class="secondary-button" (click)="createInvoice()">
+                      {{ 'jobs.form.createUpdatedInvoice' | translate }}
+                    </button>
+                  }
+                }
+              } @else {
+                @if (!isReadonly()) {
+                  @if (canCreateInvoice()) {
+                    <button type="button" class="secondary-button" (click)="createInvoice()">
+                      {{
+                        job.invoiceId
+                          ? ('jobs.form.createUpdatedInvoice' | translate)
+                          : ('jobs.form.createInvoice' | translate)
+                      }}
+                    </button>
+                  }
+                  @if (job.invoiceId) {
+                    <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
+                      {{ 'common.delete' | translate }}
+                    </button>
+                  }
+                }
+              }
+
+              @if (!isReadonly()) {
+                @if (job.archivedAt) {
+                  <button type="button" class="ghost-button" (click)="restoreJob()">
+                    {{ 'common.restore' | translate }}
+                  </button>
+                } @else {
+                  <button type="button" class="ghost-button" (click)="archiveJob()">
+                    {{ 'common.archive' | translate }}
+                  </button>
                 }
               }
             }
+          </div>
 
-            @if (!isReadonly()) {
-              @if (job.archivedAt) {
-                <button type="button" class="ghost-button" (click)="restoreJob()">
-                  {{ 'common.restore' | translate }}
-                </button>
-              } @else {
-                <button type="button" class="ghost-button" (click)="archiveJob()">
-                  {{ 'common.archive' | translate }}
-                </button>
-              }
-            }
-          }
-
-          <button type="button" class="ghost-button" (click)="requestClose()">
-            {{ (isReadonly() ? 'common.close' : 'common.cancel') | translate }}
-          </button>
-          @if (!isReadonly()) {
-            <button type="submit" class="primary-button" [disabled]="saving()">
-              {{ submitLabel() }}
+          <div
+            class="actions wrap job-form-header-primary-actions"
+            [class.job-form-header-primary-actions--mobile-menu]="useHistoryActionMenu()"
+          >
+            <button type="button" class="ghost-button" (click)="requestClose()">
+              {{ (isReadonly() ? 'common.close' : 'common.cancel') | translate }}
             </button>
+            @if (!isReadonly()) {
+              <button type="submit" class="primary-button" [disabled]="saving()">
+                {{ submitLabel() }}
+              </button>
+            }
+          </div>
+
+          @if (useHistoryActionMenu()) {
+            <div class="job-form-mobile-actions" #headerActionsMenuHost>
+              <button
+                type="button"
+                class="secondary-button job-form-mobile-actions__trigger"
+                (click)="toggleHeaderActionsMenu($event)"
+                [attr.aria-expanded]="headerActionsMenuOpen()"
+                aria-haspopup="dialog"
+                [attr.aria-label]="'common.actions' | translate"
+              >
+                {{ 'common.actions' | translate }}
+              </button>
+
+              @if (headerActionsMenuOpen()) {
+                <section class="job-actions-menu" role="dialog" [attr.aria-label]="'common.actions' | translate">
+                  <div class="job-actions-menu__title">
+                    <p class="eyebrow">{{ 'common.actions' | translate }}</p>
+                  </div>
+
+                  <div class="stack-sm job-actions-menu__items">
+                    @if (showExistingJobActions() && currentJob(); as job) {
+                      @if (job.invoiceId && currentInvoice()) {
+                        <a
+                          class="secondary-button job-actions-menu__item"
+                          [routerLink]="['/invoices', job.invoiceId]"
+                          (click)="closeHeaderActionsMenu()"
+                        >
+                          {{ 'jobs.form.viewInvoice' | translate }}
+                        </a>
+                        @if (!isReadonly()) {
+                          <button type="button" class="ghost-button job-actions-menu__item" (click)="deleteInvoiceFromMenu(job)">
+                            {{ 'common.delete' | translate }}
+                          </button>
+                          @if (canCreateInvoice()) {
+                            <button type="button" class="secondary-button job-actions-menu__item" (click)="createInvoiceFromMenu()">
+                              {{ 'jobs.form.createUpdatedInvoice' | translate }}
+                            </button>
+                          }
+                        }
+                      } @else {
+                        @if (!isReadonly()) {
+                          @if (canCreateInvoice()) {
+                            <button type="button" class="secondary-button job-actions-menu__item" (click)="createInvoiceFromMenu()">
+                              {{
+                                job.invoiceId
+                                  ? ('jobs.form.createUpdatedInvoice' | translate)
+                                  : ('jobs.form.createInvoice' | translate)
+                              }}
+                            </button>
+                          }
+                          @if (job.invoiceId) {
+                            <button type="button" class="ghost-button job-actions-menu__item" (click)="deleteInvoiceFromMenu(job)">
+                              {{ 'common.delete' | translate }}
+                            </button>
+                          }
+                        }
+                      }
+
+                      @if (!isReadonly()) {
+                        @if (job.archivedAt) {
+                          <button type="button" class="ghost-button job-actions-menu__item" (click)="restoreJobFromMenu()">
+                            {{ 'common.restore' | translate }}
+                          </button>
+                        } @else {
+                          <button type="button" class="ghost-button job-actions-menu__item" (click)="archiveJobFromMenu()">
+                            {{ 'common.archive' | translate }}
+                          </button>
+                        }
+                      }
+                    }
+
+                    <button type="button" class="ghost-button job-actions-menu__item" (click)="requestCloseFromMenu()">
+                      {{ (isReadonly() ? 'common.close' : 'common.cancel') | translate }}
+                    </button>
+
+                    @if (!isReadonly()) {
+                      <button
+                        type="submit"
+                        class="primary-button job-actions-menu__item"
+                        [disabled]="saving()"
+                        (click)="closeHeaderActionsMenu()"
+                      >
+                        {{ submitLabel() }}
+                      </button>
+                    }
+                  </div>
+                </section>
+              }
+            </div>
           }
         </div>
       </div>
@@ -404,6 +505,50 @@ export interface JobFormSavedEvent {
         align-self: flex-start;
       }
 
+      .job-form-header-buttons {
+        justify-content: flex-end;
+      }
+
+      .job-form-header-primary-actions {
+        justify-content: flex-end;
+      }
+
+      .job-form-mobile-actions {
+        display: none;
+        position: relative;
+      }
+
+      .job-form-mobile-actions__trigger {
+        min-width: 120px;
+      }
+
+      .job-actions-menu {
+        position: absolute;
+        top: calc(100% + 0.7rem);
+        right: 0;
+        z-index: 8;
+        width: min(18rem, calc(100vw - 3rem));
+        padding: 1rem;
+        border-radius: 1.2rem;
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .job-actions-menu__title {
+        margin-bottom: 0.75rem;
+      }
+
+      .job-actions-menu__items {
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .job-actions-menu__item {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
       .line-item-grid {
         display: grid;
         grid-template-columns: 2fr repeat(5, minmax(0, 1fr)) auto;
@@ -561,6 +706,37 @@ export interface JobFormSavedEvent {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
+
+      @media (max-width: 800px) {
+        .job-form-header-buttons--mobile-menu {
+          display: none;
+        }
+
+        .job-form-mobile-actions {
+          display: block;
+          margin-left: auto;
+        }
+
+        .job-actions-menu {
+          width: min(18rem, calc(100vw - 2rem));
+        }
+      }
+
+      @media (max-width: 800px) and (orientation: portrait) {
+        .job-form-header-primary-actions--mobile-menu {
+          display: none;
+        }
+      }
+
+      @media (max-width: 800px) and (orientation: landscape) {
+        .job-actions-menu {
+          width: min(28rem, calc(100vw - 2rem));
+        }
+
+        .job-actions-menu__items {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
     `
   ]
 })
@@ -584,6 +760,7 @@ export class JobFormComponent {
   readonly initialEndDate = input('');
   readonly initialError = input<string | null>(null);
   readonly readonlyMode = input(false);
+  readonly source = input('');
   readonly showExistingActions = input(false);
 
   readonly cancelled = output<void>();
@@ -640,8 +817,11 @@ export class JobFormComponent {
     () => Boolean(this.showExistingActions() && this.isEdit() && this.currentJob())
   );
   readonly totalImageCount = computed(() => this.images().length + this.stagedImages().length);
+  readonly useHistoryActionMenu = computed(() => this.source() === 'history');
+  readonly headerActionsMenuOpen = signal(false);
   readonly plusIcon = 'M12 5v14M5 12h14';
   readonly closeIcon = 'M6 6l12 12M18 6 6 18';
+  private readonly headerActionsMenuRef = viewChild<ElementRef<HTMLElement>>('headerActionsMenuHost');
 
   readonly form = this.fb.group({
     clientId: ['', Validators.required],
@@ -777,6 +957,12 @@ export class JobFormComponent {
       }
 
       this.form.enable({ emitEvent: false });
+    });
+
+    effect(() => {
+      this.source();
+      this.currentJob();
+      this.headerActionsMenuOpen.set(false);
     });
   }
 
@@ -1097,6 +1283,60 @@ export class JobFormComponent {
 
   requestClose(): void {
     this.cancelled.emit();
+  }
+
+  toggleHeaderActionsMenu(event: Event): void {
+    event.stopPropagation();
+    this.headerActionsMenuOpen.update((open) => !open);
+  }
+
+  closeHeaderActionsMenu(): void {
+    this.headerActionsMenuOpen.set(false);
+  }
+
+  async createInvoiceFromMenu(): Promise<void> {
+    this.closeHeaderActionsMenu();
+    await this.createInvoice();
+  }
+
+  async deleteInvoiceFromMenu(job: JobRecord): Promise<void> {
+    this.closeHeaderActionsMenu();
+    await this.deleteInvoice(job);
+  }
+
+  async archiveJobFromMenu(): Promise<void> {
+    this.closeHeaderActionsMenu();
+    await this.archiveJob();
+  }
+
+  async restoreJobFromMenu(): Promise<void> {
+    this.closeHeaderActionsMenu();
+    await this.restoreJob();
+  }
+
+  requestCloseFromMenu(): void {
+    this.closeHeaderActionsMenu();
+    this.requestClose();
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent): void {
+    if (!this.headerActionsMenuOpen()) {
+      return;
+    }
+
+    const menuHost = this.headerActionsMenuRef()?.nativeElement;
+
+    if (!menuHost || menuHost.contains(event.target as Node)) {
+      return;
+    }
+
+    this.closeHeaderActionsMenu();
+  }
+
+  @HostListener('document:keydown.escape')
+  handleEscape(): void {
+    this.closeHeaderActionsMenu();
   }
 
   private async loadThumb(jobId: string, imageId: string): Promise<void> {

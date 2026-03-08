@@ -33,6 +33,7 @@ interface JobFormNavigationState {
               [initialEndDate]="endDate()"
               [initialError]="initialError()"
               [readonlyMode]="readonlyMode()"
+              [source]="source()"
               [showExistingActions]="true"
               (cancelled)="close()"
               (saved)="handleSaved($event)"
