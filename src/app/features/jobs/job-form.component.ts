@@ -10,7 +10,7 @@ import {
   signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -92,7 +92,7 @@ export interface JobFormSavedEvent {
       <div class="grid-two">
         <label class="field">
           <span>{{ 'common.client' | translate }}</span>
-          <select formControlName="clientId">
+          <select id="job-client" name="jobClient" formControlName="clientId">
             <option value="">{{ 'jobs.form.selectClient' | translate }}</option>
             @for (client of activeClients(); track client.id) {
               <option [value]="client.id">{{ client.displayName }}</option>
@@ -117,7 +117,7 @@ export interface JobFormSavedEvent {
         </label>
         <label class="field">
           <span>{{ 'common.status' | translate }}</span>
-          <select formControlName="status">
+          <select id="job-status" name="jobStatus" formControlName="status">
             @for (status of editableStatuses; track status) {
               <option [value]="status">{{ ('jobStatus.' + status) | translate }}</option>
             }
@@ -179,7 +179,11 @@ export interface JobFormSavedEvent {
 
               <label class="field">
                 <span>{{ 'common.kind' | translate }}</span>
-                <select formControlName="kind">
+                <select
+                  [attr.id]="'job-line-kind-' + i"
+                  [attr.name]="'jobLineKind-' + i"
+                  formControlName="kind"
+                >
                   <option value="labor">{{ 'lineItemKinds.labor' | translate }}</option>
                   <option value="material">{{ 'lineItemKinds.material' | translate }}</option>
                   <option value="custom">{{ 'lineItemKinds.custom' | translate }}</option>
@@ -747,6 +751,7 @@ export class JobFormComponent {
     this.message.set('');
 
     if (this.form.invalid) {
+      this.error.set(this.i18n.instant('jobs.form.errors.validation'));
       this.form.markAllAsTouched();
       return;
     }
@@ -1005,31 +1010,66 @@ export class JobFormComponent {
   }
 
   private createLineItemGroup(lineItem?: Partial<JobLineItem>) {
-    return this.fb.group({
-      id: [lineItem?.id ?? crypto.randomUUID()],
-      kind: [lineItem?.kind ?? 'labor', Validators.required],
-      description: [lineItem?.description ?? '', Validators.required],
-      quantity: [lineItem?.quantity ?? 1, [Validators.required, Validators.min(0)]],
-      unitLabel: [lineItem?.unitLabel ?? 'hour', Validators.required],
-      unitPriceCents: [lineItem?.unitPriceCents ?? 0, [Validators.required, Validators.min(0)]]
-    });
+    return this.fb.group(
+      {
+        id: [lineItem?.id ?? crypto.randomUUID()],
+        kind: [lineItem?.kind ?? 'labor', Validators.required],
+        description: [lineItem?.description ?? ''],
+        quantity: [lineItem?.quantity ?? 1, [Validators.required, Validators.min(0)]],
+        unitLabel: [lineItem?.unitLabel ?? 'hour', Validators.required],
+        unitPriceCents: [lineItem?.unitPriceCents ?? 0, [Validators.required, Validators.min(0)]]
+      },
+      {
+        validators: [this.optionalLineItemValidator()]
+      }
+    );
   }
 
   private serializeLineItems(): JobLineItem[] {
-    return this.lineItems.controls.map((control) => {
-      const quantity = Number(control.get('quantity')?.value ?? 0);
-      const unitPriceCents = normalizeCents(control.get('unitPriceCents')?.value ?? 0);
+    return this.lineItems.controls
+      .map((control) => {
+        const quantity = Number(control.get('quantity')?.value ?? 0);
+        const unitPriceCents = normalizeCents(control.get('unitPriceCents')?.value ?? 0);
 
-      return {
-        id: control.get('id')?.value ?? crypto.randomUUID(),
+        return {
+          id: control.get('id')?.value ?? crypto.randomUUID(),
+          kind: control.get('kind')?.value,
+          description: control.get('description')?.value?.trim() ?? '',
+          quantity,
+          unitLabel: control.get('unitLabel')?.value?.trim() ?? '',
+          unitPriceCents,
+          totalCents: calculateLineTotal(quantity, unitPriceCents)
+        };
+      })
+      .filter((lineItem) => !this.isBlankLineItemValue(lineItem));
+  }
+
+  private optionalLineItemValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const value = {
         kind: control.get('kind')?.value,
-        description: control.get('description')?.value?.trim() ?? '',
-        quantity,
-        unitLabel: control.get('unitLabel')?.value?.trim() ?? '',
-        unitPriceCents,
-        totalCents: calculateLineTotal(quantity, unitPriceCents)
+        description: control.get('description')?.value,
+        quantity: control.get('quantity')?.value,
+        unitLabel: control.get('unitLabel')?.value,
+        unitPriceCents: control.get('unitPriceCents')?.value
       };
-    });
+
+      if (this.isBlankLineItemValue(value)) {
+        return null;
+      }
+
+      return value.description?.trim() ? null : { descriptionRequired: true };
+    };
+  }
+
+  private isBlankLineItemValue(value: Partial<JobLineItem>): boolean {
+    const description = value.description?.trim() ?? '';
+    const kind = value.kind ?? 'labor';
+    const quantity = Number(value.quantity ?? 1);
+    const unitLabel = value.unitLabel?.trim() ?? 'hour';
+    const unitPriceCents = normalizeCents(value.unitPriceCents ?? 0);
+
+    return !description && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPriceCents === 0;
   }
 
   private revokePreviewUrl(previewUrl: string): void {

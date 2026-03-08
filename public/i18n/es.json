@@ -346,6 +346,7 @@
       "create": "Crear",
       "saved": "Trabajo guardado.",
       "errors": {
+        "validation": "Completa los campos requeridos antes de guardar el trabajo.",
         "dateOrder": "La fecha de fin debe ser el mismo día o posterior a la fecha de inicio.",
         "save": "No se pudo guardar el trabajo.",
         "missingClient": "No se encontró el registro del cliente vinculado.",

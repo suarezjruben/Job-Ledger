@@ -32,7 +32,12 @@ import { toCurrency } from '../../core/utils/money.utils';
 
           <label class="field">
             <span>{{ 'common.status' | translate }}</span>
-            <select [value]="statusFilter()" (change)="statusFilter.set(($any($event.target)).value)">
+            <select
+              id="invoice-status-filter"
+              name="invoiceStatusFilter"
+              [value]="statusFilter()"
+              (change)="statusFilter.set(($any($event.target)).value)"
+            >
               <option value="all">{{ 'invoices.list.allStatuses' | translate }}</option>
               @for (status of statuses; track status) {
                 <option [value]="status">{{ ('invoiceStatus.' + status) | translate }}</option>
