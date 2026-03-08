@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule, DOCUMENT, Location } from '@angular/common';
-import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -11,7 +11,12 @@ import { InvoiceWorkflowService } from '../../core/services/invoice-workflow.ser
 import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { InvoiceRecord, JobLineItem } from '../../core/models';
 import { formatDateRange } from '../../core/utils/date.utils';
-import { calculateLineTotal, normalizeCents, toCurrency } from '../../core/utils/money.utils';
+import {
+  calculateLineTotal,
+  centsToDollarsAmount,
+  normalizeDollarsToCents,
+  toCurrency
+} from '../../core/utils/money.utils';
 
 @Component({
   selector: 'app-invoice-detail-page',
@@ -84,6 +89,13 @@ import { calculateLineTotal, normalizeCents, toCurrency } from '../../core/utils
                         </select>
                       </label>
 
+                      @if (lineItem.get('kind')?.value === 'custom') {
+                        <label class="field">
+                          <span>{{ 'common.customKind' | translate }}</span>
+                          <input type="text" formControlName="kindLabel" [readonly]="!isDraft()" />
+                        </label>
+                      }
+
                       <label class="field">
                         <span>{{ 'common.unitLabel' | translate }}</span>
                         <input type="text" formControlName="unitLabel" [readonly]="!isDraft()" />
@@ -95,8 +107,8 @@ import { calculateLineTotal, normalizeCents, toCurrency } from '../../core/utils
                       </label>
 
                       <label class="field">
-                        <span>{{ 'common.rateCents' | translate }}</span>
-                        <input type="number" min="0" step="1" formControlName="unitPriceCents" [readonly]="!isDraft()" />
+                        <span>{{ 'common.rate' | translate }}</span>
+                        <input type="number" min="0" step="0.01" formControlName="unitPriceCents" [readonly]="!isDraft()" />
                       </label>
 
                       <div class="line-item-total">
@@ -208,7 +220,7 @@ import { calculateLineTotal, normalizeCents, toCurrency } from '../../core/utils
     `
       .line-item-grid {
         display: grid;
-        grid-template-columns: 2fr repeat(4, minmax(0, 1fr)) auto;
+        grid-template-columns: 2fr repeat(5, minmax(0, 1fr)) auto;
         gap: 0.85rem;
         align-items: end;
         padding: 1rem;
@@ -305,7 +317,7 @@ export class InvoiceDetailPageComponent {
   lineTotal(index: number): string {
     const group = this.lineItems.at(index);
     const quantity = Number(group.get('quantity')?.value ?? 0);
-    const unitPriceCents = normalizeCents(group.get('unitPriceCents')?.value ?? 0);
+    const unitPriceCents = normalizeDollarsToCents(group.get('unitPriceCents')?.value ?? 0);
     return toCurrency(calculateLineTotal(quantity, unitPriceCents));
   }
 
@@ -319,6 +331,12 @@ export class InvoiceDetailPageComponent {
 
   async saveDraft(): Promise<void> {
     if (!this.isDraft() || !this.invoice()) {
+      return;
+    }
+
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.error.set(this.i18n.instant('invoices.detail.errors.validation'));
       return;
     }
 
@@ -336,6 +354,12 @@ export class InvoiceDetailPageComponent {
 
   async issueInvoice(): Promise<void> {
     if (!this.invoice()) {
+      return;
+    }
+
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.error.set(this.i18n.instant('invoices.detail.errors.validation'));
       return;
     }
 
@@ -440,24 +464,33 @@ export class InvoiceDetailPageComponent {
   }
 
   private createLineItemGroup(lineItem?: Partial<JobLineItem>) {
-    return this.fb.group({
-      id: [lineItem?.id ?? crypto.randomUUID()],
-      kind: [lineItem?.kind ?? 'labor', Validators.required],
-      description: [lineItem?.description ?? '', Validators.required],
-      quantity: [lineItem?.quantity ?? 1, [Validators.required, Validators.min(0)]],
-      unitLabel: [lineItem?.unitLabel ?? 'hour', Validators.required],
-      unitPriceCents: [lineItem?.unitPriceCents ?? 0, [Validators.required, Validators.min(0)]]
-    });
+    return this.fb.group(
+      {
+        id: [lineItem?.id ?? crypto.randomUUID()],
+        kind: [lineItem?.kind ?? 'labor', Validators.required],
+        kindLabel: [lineItem?.kind === 'custom' ? (lineItem.kindLabel ?? '') : ''],
+        description: [lineItem?.description ?? '', Validators.required],
+        quantity: [lineItem?.quantity ?? 1, [Validators.required, Validators.min(0)]],
+        unitLabel: [lineItem?.unitLabel ?? 'hour', Validators.required],
+        unitPriceCents: [centsToDollarsAmount(lineItem?.unitPriceCents ?? 0), [Validators.required, Validators.min(0)]]
+      },
+      {
+        validators: [this.customKindValidator()]
+      }
+    );
   }
 
   private serializeLineItems(): JobLineItem[] {
     return this.lineItems.controls.map((control) => {
       const quantity = Number(control.get('quantity')?.value ?? 0);
-      const unitPriceCents = normalizeCents(control.get('unitPriceCents')?.value ?? 0);
+      const unitPriceCents = normalizeDollarsToCents(control.get('unitPriceCents')?.value ?? 0);
+      const kind = control.get('kind')?.value;
+      const kindLabel = control.get('kindLabel')?.value?.trim() ?? '';
 
       return {
         id: control.get('id')?.value ?? crypto.randomUUID(),
-        kind: control.get('kind')?.value,
+        kind,
+        kindLabel: kind === 'custom' ? kindLabel : undefined,
         description: control.get('description')?.value?.trim() ?? '',
         quantity,
         unitLabel: control.get('unitLabel')?.value?.trim() ?? '',
@@ -465,6 +498,16 @@ export class InvoiceDetailPageComponent {
         totalCents: calculateLineTotal(quantity, unitPriceCents)
       };
     });
+  }
+
+  private customKindValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (control.get('kind')?.value !== 'custom') {
+        return null;
+      }
+
+      return control.get('kindLabel')?.value?.trim() ? null : { kindLabelRequired: true };
+    };
   }
 
   private shouldUseHistoryBack(): boolean {

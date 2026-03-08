@@ -1,25 +1,25 @@
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
+import { Router } from '@angular/router';
 import { BehaviorSubject, of } from 'rxjs';
 import { ClientRecord, InvoiceRecord, JobRecord } from '../../core/models';
 import { AppI18nService } from '../../core/services/app-i18n.service';
 import { ClientsRepository } from '../../core/services/clients.repository';
-import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { InvoiceWorkflowService } from '../../core/services/invoice-workflow.service';
+import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { JobImagesRepository } from '../../core/services/job-images.repository';
 import { JobsRepository } from '../../core/services/jobs.repository';
-import { CalendarPageComponent } from './calendar-page.component';
+import { JobFormComponent } from './job-form.component';
 
-describe('CalendarPageComponent', () => {
-  let fixture: ComponentFixture<CalendarPageComponent>;
-  let component: CalendarPageComponent;
-  let router: jasmine.SpyObj<Router>;
-  let jobsRepository: jasmine.SpyObj<JobsRepository>;
-  let invoicesRepository: jasmine.SpyObj<InvoicesRepository>;
-  let invoiceWorkflow: jasmine.SpyObj<InvoiceWorkflowService>;
-  let jobsSubject: BehaviorSubject<JobRecord[]>;
+describe('JobFormComponent', () => {
+  let fixture: ComponentFixture<JobFormComponent>;
+  let component: JobFormComponent;
+  let jobSubject: BehaviorSubject<JobRecord | undefined>;
   let invoiceSubject: BehaviorSubject<InvoiceRecord | undefined>;
+  let invoicesRepository: jasmine.SpyObj<InvoicesRepository>;
+  let jobsRepository: jasmine.SpyObj<JobsRepository>;
+  let invoiceWorkflow: jasmine.SpyObj<InvoiceWorkflowService>;
+  let router: jasmine.SpyObj<Router>;
 
   const client: ClientRecord = {
     id: 'client-1',
@@ -78,37 +78,38 @@ describe('CalendarPageComponent', () => {
   };
 
   beforeEach(async () => {
-    jobsSubject = new BehaviorSubject<JobRecord[]>([baseJob]);
+    jobSubject = new BehaviorSubject<JobRecord | undefined>(baseJob);
     invoiceSubject = new BehaviorSubject<InvoiceRecord | undefined>(baseInvoice);
-
-    router = jasmine.createSpyObj<Router>('Router', ['navigate']);
-
-    jobsRepository = jasmine.createSpyObj<JobsRepository>('JobsRepository', ['observeJobs', 'clearJobInvoice']);
-    jobsRepository.observeJobs.and.returnValue(jobsSubject.asObservable());
-    jobsRepository.clearJobInvoice.and.resolveTo();
 
     invoicesRepository = jasmine.createSpyObj<InvoicesRepository>('InvoicesRepository', ['observeInvoice', 'deleteInvoice']);
     invoicesRepository.observeInvoice.and.callFake(() => invoiceSubject.asObservable());
     invoicesRepository.deleteInvoice.and.resolveTo();
 
+    jobsRepository = jasmine.createSpyObj<JobsRepository>('JobsRepository', ['observeJob', 'updateJob', 'clearJobInvoice']);
+    jobsRepository.observeJob.and.callFake(() => jobSubject.asObservable());
+    jobsRepository.updateJob.and.resolveTo();
+    jobsRepository.clearJobInvoice.and.resolveTo();
+
     invoiceWorkflow = jasmine.createSpyObj<InvoiceWorkflowService>('InvoiceWorkflowService', ['createDraftForJob']);
     invoiceWorkflow.createDraftForJob.and.resolveTo('invoice-2');
 
+    router = jasmine.createSpyObj<Router>('Router', ['navigate']);
+    router.navigate.and.resolveTo(true);
+
     await TestBed.configureTestingModule({
-      imports: [CalendarPageComponent],
+      imports: [JobFormComponent],
       providers: [
         {
           provide: Router,
           useValue: router
         },
         {
-          provide: ActivatedRoute,
-          useValue: {
-            queryParamMap: of(convertToParamMap({})),
-            snapshot: {
-              queryParamMap: convertToParamMap({})
-            }
-          }
+          provide: JobsRepository,
+          useValue: jobsRepository
+        },
+        {
+          provide: InvoicesRepository,
+          useValue: invoicesRepository
         },
         {
           provide: ClientsRepository,
@@ -117,19 +118,11 @@ describe('CalendarPageComponent', () => {
           }
         },
         {
-          provide: InvoicesRepository,
-          useValue: invoicesRepository
-        },
-        {
           provide: JobImagesRepository,
           useValue: {
             observeImages: () => of([]),
             getImageDownloadUrl: () => Promise.resolve('')
           }
-        },
-        {
-          provide: JobsRepository,
-          useValue: jobsRepository
         },
         {
           provide: InvoiceWorkflowService,
@@ -144,62 +137,57 @@ describe('CalendarPageComponent', () => {
         }
       ],
       schemas: [NO_ERRORS_SCHEMA]
-    }).overrideComponent(CalendarPageComponent, {
+    }).overrideComponent(JobFormComponent, {
       set: {
         template: ''
       }
     }).compileComponents();
 
-    fixture = TestBed.createComponent(CalendarPageComponent);
+    fixture = TestBed.createComponent(JobFormComponent);
+    fixture.componentRef.setInput('jobId', baseJob.id);
+    fixture.componentRef.setInput('showExistingActions', true);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('navigates to the invoice detail page without issuing a second navigation back to the calendar', async () => {
-    component.selectedJobId.set(baseJob.id);
-    router.navigate.and.resolveTo(true);
+  it('allows generating a new invoice when saved job line items differ from the linked invoice', () => {
+    expect(component.canCreateInvoice()).toBeFalse();
 
-    await component.viewInvoice('invoice-456');
+    component.addLineItem();
+    component.lineItems.at(1).patchValue({
+      description: 'Trim',
+      unitPriceCents: 45
+    });
+    fixture.detectChanges();
 
-    expect(router.navigate.calls.count()).toBe(1);
-    expect(router.navigate).toHaveBeenCalledWith(['/invoices', 'invoice-456']);
-    expect(component.selectedJobId()).toBeNull();
-    expect(component.error()).toBe('');
+    expect(component.canCreateInvoice()).toBeTrue();
   });
 
-  it('keeps the modal open when invoice navigation fails', async () => {
-    component.selectedJobId.set(baseJob.id);
-    router.navigate.and.resolveTo(false);
+  it('creates a new invoice from the current form line items when they differ from the linked invoice', async () => {
+    component.addLineItem();
+    component.lineItems.at(1).patchValue({
+      description: 'Trim',
+      unitPriceCents: 45
+    });
 
-    await component.viewInvoice('invoice-456');
+    await component.createInvoice();
 
-    expect(router.navigate.calls.count()).toBe(1);
-    expect(component.selectedJobId()).toBe(baseJob.id);
-    expect(component.error()).toBe('calendar.errors.viewInvoice');
-  });
-
-  it('allows generating a new invoice for an invoiced job when line items differ from the linked invoice', async () => {
-    component.selectedJobId.set(baseJob.id);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    expect(component.canCreateInvoice(baseJob)).toBeFalse();
-
-    jobsSubject.next([
-      {
-        ...baseJob,
-        lineItems: [...baseJob.lineItems, buildLineItem('line-2', 'Trim', 4500)]
-      }
-    ]);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.canCreateInvoice(component.selectedJob()!)).toBeTrue();
+    expect(jobsRepository.updateJob).toHaveBeenCalledWith(
+      baseJob.id,
+      jasmine.objectContaining({
+        lineItems: jasmine.arrayContaining([jasmine.objectContaining({ description: 'Trim', totalCents: 4500 })])
+      })
+    );
+    expect(invoiceWorkflow.createDraftForJob).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        lineItems: jasmine.arrayContaining([jasmine.objectContaining({ description: 'Trim', totalCents: 4500 })])
+      }),
+      client
+    );
+    expect(router.navigate).toHaveBeenCalledWith(['/invoices', 'invoice-2']);
   });
 
   it('deletes the linked invoice and clears the job invoice reference after confirmation', async () => {
-    component.selectedJobId.set(baseJob.id);
-    fixture.detectChanges();
-    await fixture.whenStable();
     spyOn(window, 'confirm').and.returnValue(true);
 
     await component.deleteInvoice(baseJob);

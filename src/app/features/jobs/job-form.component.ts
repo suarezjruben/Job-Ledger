@@ -17,17 +17,26 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { of, switchMap } from 'rxjs';
 import {
   ClientRecord,
+  InvoiceRecord,
   JOB_STATUSES,
   JobImageRecord,
   JobLineItem,
+  JobRecord,
   JobStatus
 } from '../../core/models';
 import { AppI18nService } from '../../core/services/app-i18n.service';
 import { ClientsRepository } from '../../core/services/clients.repository';
 import { InvoiceWorkflowService } from '../../core/services/invoice-workflow.service';
+import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { JobImagesRepository } from '../../core/services/job-images.repository';
-import { JobsRepository } from '../../core/services/jobs.repository';
-import { calculateLineTotal, normalizeCents, toCurrency } from '../../core/utils/money.utils';
+import { JobsRepository, JobUpsertInput } from '../../core/services/jobs.repository';
+import {
+  calculateLineTotal,
+  centsToDollarsAmount,
+  normalizeCents,
+  normalizeDollarsToCents,
+  toCurrency
+} from '../../core/utils/money.utils';
 import { valueOrUndefined } from '../../core/utils/object.utils';
 
 const MAX_JOB_IMAGES = 10;
@@ -59,14 +68,33 @@ export interface JobFormSavedEvent {
 
         <div class="actions wrap job-form-header-actions">
           @if (showExistingJobActions() && currentJob(); as job) {
-            @if (job.invoiceId) {
+            @if (job.invoiceId && currentInvoice()) {
               <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
                 {{ 'jobs.form.viewInvoice' | translate }}
               </a>
-            } @else if (canCreateInvoice()) {
-              <button type="button" class="secondary-button" (click)="createInvoice()">
-                {{ 'jobs.form.createInvoice' | translate }}
+              <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
+                {{ 'common.delete' | translate }}
               </button>
+              @if (canCreateInvoice()) {
+                <button type="button" class="secondary-button" (click)="createInvoice()">
+                  {{ 'jobs.form.createUpdatedInvoice' | translate }}
+                </button>
+              }
+            } @else {
+              @if (canCreateInvoice()) {
+                <button type="button" class="secondary-button" (click)="createInvoice()">
+                  {{
+                    job.invoiceId
+                      ? ('jobs.form.createUpdatedInvoice' | translate)
+                      : ('jobs.form.createInvoice' | translate)
+                  }}
+                </button>
+              }
+              @if (job.invoiceId) {
+                <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
+                  {{ 'common.delete' | translate }}
+                </button>
+              }
             }
 
             @if (job.archivedAt) {
@@ -190,6 +218,13 @@ export interface JobFormSavedEvent {
                 </select>
               </label>
 
+              @if (lineItem.get('kind')?.value === 'custom') {
+                <label class="field">
+                  <span>{{ 'common.customKind' | translate }}</span>
+                  <input type="text" formControlName="kindLabel" />
+                </label>
+              }
+
               <label class="field">
                 <span>{{ 'common.unitLabel' | translate }}</span>
                 <input type="text" formControlName="unitLabel" />
@@ -201,8 +236,8 @@ export interface JobFormSavedEvent {
               </label>
 
               <label class="field">
-                <span>{{ 'common.rateCents' | translate }}</span>
-                <input type="number" min="0" step="1" formControlName="unitPriceCents" />
+                <span>{{ 'common.rate' | translate }}</span>
+                <input type="number" min="0" step="0.01" formControlName="unitPriceCents" />
               </label>
 
               <div class="line-item-total">
@@ -355,7 +390,7 @@ export interface JobFormSavedEvent {
 
       .line-item-grid {
         display: grid;
-        grid-template-columns: 2fr repeat(4, minmax(0, 1fr)) auto;
+        grid-template-columns: 2fr repeat(5, minmax(0, 1fr)) auto;
         gap: 0.85rem;
         align-items: end;
         padding: 1rem;
@@ -521,6 +556,7 @@ export class JobFormComponent {
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly imagesRepository = inject(JobImagesRepository);
   private readonly invoiceWorkflow = inject(InvoiceWorkflowService);
+  private readonly invoicesRepository = inject(InvoicesRepository);
   private readonly i18n = inject(AppI18nService);
   private readonly thumbLoadingIds = new Set<string>();
   private readonly lastPatchedJobId = signal<string | null>(null);
@@ -548,6 +584,15 @@ export class JobFormComponent {
       switchMap((jobId) => (jobId ? this.jobsRepository.observeJob(jobId) : of(undefined)))
     ),
     { initialValue: undefined }
+  );
+  readonly currentInvoiceId = computed(() => this.currentJob()?.invoiceId ?? null);
+  readonly currentInvoice = toSignal(
+    toObservable(this.currentInvoiceId).pipe(
+      switchMap((invoiceId) =>
+        invoiceId ? this.invoicesRepository.observeInvoice(invoiceId) : of(undefined as InvoiceRecord | undefined)
+      )
+    ),
+    { initialValue: undefined as InvoiceRecord | undefined }
   );
 
   readonly images = toSignal(
@@ -719,6 +764,7 @@ export class JobFormComponent {
     if (this.lineItems.length === 1) {
       this.lineItems.at(0).reset({
         kind: 'labor',
+        kindLabel: '',
         description: '',
         quantity: 1,
         unitLabel: 'hour',
@@ -733,7 +779,7 @@ export class JobFormComponent {
   lineTotal(index: number): string {
     const group = this.lineItems.at(index);
     const quantity = Number(group.get('quantity')?.value ?? 0);
-    const unitPriceCents = normalizeCents(group.get('unitPriceCents')?.value ?? 0);
+    const unitPriceCents = normalizeDollarsToCents(group.get('unitPriceCents')?.value ?? 0);
     return toCurrency(calculateLineTotal(quantity, unitPriceCents));
   }
 
@@ -743,31 +789,28 @@ export class JobFormComponent {
 
   canCreateInvoice(): boolean {
     const job = this.currentJob();
-    return Boolean(job && job.status === 'completed' && !job.invoiceId);
+    const currentInvoice = this.currentInvoice();
+    const status = (this.form.get('status')?.value as JobStatus | null) ?? job?.status;
+    const currentLineItems = this.serializeLineItems();
+
+    if (!job || job.archivedAt || (status !== 'completed' && status !== 'invoiced')) {
+      return false;
+    }
+
+    if (!job.invoiceId || !currentInvoice) {
+      return true;
+    }
+
+    return this.lineItemsDiffer(currentLineItems, currentInvoice.lineItems);
   }
 
   async save(): Promise<void> {
     this.error.set('');
     this.message.set('');
 
-    if (this.form.invalid) {
-      this.error.set(this.i18n.instant('jobs.form.errors.validation'));
-      this.form.markAllAsTouched();
-      return;
-    }
+    const payload = this.buildJobPayload();
 
-    const value = this.form.getRawValue();
-    const clientId = value.clientId ?? '';
-    const title = value.title ?? '';
-    const startDate = value.startDate ?? '';
-    const endDate = value.endDate ?? '';
-    const line1 = value.line1 ?? '';
-    const city = value.city ?? '';
-    const state = value.state ?? '';
-    const postalCode = value.postalCode ?? '';
-
-    if (startDate > endDate) {
-      this.error.set(this.i18n.instant('jobs.form.errors.dateOrder'));
+    if (!payload) {
       return;
     }
 
@@ -775,25 +818,6 @@ export class JobFormComponent {
 
     try {
       let activeJobId = this.jobId();
-      const payload = {
-        clientId,
-        title: title.trim(),
-        status: (value.status ?? 'scheduled') as JobStatus,
-        startDate,
-        endDate,
-        address: line1.trim()
-          ? {
-              line1: line1.trim(),
-              line2: valueOrUndefined(value.line2),
-              city: city.trim(),
-              state: state.trim(),
-              postalCode: postalCode.trim()
-            }
-          : undefined,
-        description: valueOrUndefined(value.description),
-        notes: valueOrUndefined(value.notes),
-        lineItems: this.serializeLineItems()
-      };
 
       if (this.isEdit() && activeJobId) {
         await this.jobsRepository.updateJob(activeJobId, payload);
@@ -830,7 +854,7 @@ export class JobFormComponent {
   async createInvoice(): Promise<void> {
     const job = this.currentJob();
 
-    if (!job) {
+    if (!job || !this.canCreateInvoice()) {
       return;
     }
 
@@ -841,11 +865,46 @@ export class JobFormComponent {
       return;
     }
 
+    const payload = this.buildJobPayload();
+
+    if (!payload) {
+      return;
+    }
+
     try {
-      const invoiceId = await this.invoiceWorkflow.createDraftForJob(job, client);
+      await this.jobsRepository.updateJob(job.id, payload);
+      const invoiceId = await this.invoiceWorkflow.createDraftForJob(this.mergeJobWithPayload(job, payload), client);
       await this.router.navigate(['/invoices', invoiceId]);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.createInvoice'));
+    }
+  }
+
+  async deleteInvoice(job: JobRecord): Promise<void> {
+    if (!job.invoiceId) {
+      return;
+    }
+
+    const invoice = this.currentInvoice();
+    const confirmed = window.confirm(
+      invoice
+        ? this.i18n.instant('jobs.form.confirmDeleteInvoice', { invoiceNumber: invoice.invoiceNumber })
+        : this.i18n.instant('jobs.form.confirmDeleteInvoiceFallback')
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.error.set('');
+    this.message.set('');
+
+    try {
+      await this.invoicesRepository.deleteInvoice(job.invoiceId);
+      await this.jobsRepository.clearJobInvoice(job.id, this.invoiceDeleteFallbackStatus(job));
+      this.message.set(this.i18n.instant('jobs.form.invoiceDeleted'));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.deleteInvoice'));
     }
   }
 
@@ -1014,10 +1073,11 @@ export class JobFormComponent {
       {
         id: [lineItem?.id ?? crypto.randomUUID()],
         kind: [lineItem?.kind ?? 'labor', Validators.required],
+        kindLabel: [lineItem?.kind === 'custom' ? (lineItem.kindLabel ?? '') : ''],
         description: [lineItem?.description ?? ''],
         quantity: [lineItem?.quantity ?? 1, [Validators.required, Validators.min(0)]],
         unitLabel: [lineItem?.unitLabel ?? 'hour', Validators.required],
-        unitPriceCents: [lineItem?.unitPriceCents ?? 0, [Validators.required, Validators.min(0)]]
+        unitPriceCents: [centsToDollarsAmount(lineItem?.unitPriceCents ?? 0), [Validators.required, Validators.min(0)]]
       },
       {
         validators: [this.optionalLineItemValidator()]
@@ -1029,11 +1089,14 @@ export class JobFormComponent {
     return this.lineItems.controls
       .map((control) => {
         const quantity = Number(control.get('quantity')?.value ?? 0);
-        const unitPriceCents = normalizeCents(control.get('unitPriceCents')?.value ?? 0);
+        const unitPriceCents = normalizeDollarsToCents(control.get('unitPriceCents')?.value ?? 0);
+        const kind = control.get('kind')?.value;
+        const kindLabel = control.get('kindLabel')?.value?.trim() ?? '';
 
         return {
           id: control.get('id')?.value ?? crypto.randomUUID(),
-          kind: control.get('kind')?.value,
+          kind,
+          kindLabel: kind === 'custom' ? valueOrUndefined(kindLabel) : undefined,
           description: control.get('description')?.value?.trim() ?? '',
           quantity,
           unitLabel: control.get('unitLabel')?.value?.trim() ?? '',
@@ -1048,28 +1111,124 @@ export class JobFormComponent {
     return (control: AbstractControl): ValidationErrors | null => {
       const value = {
         kind: control.get('kind')?.value,
+        kindLabel: control.get('kindLabel')?.value,
         description: control.get('description')?.value,
         quantity: control.get('quantity')?.value,
         unitLabel: control.get('unitLabel')?.value,
         unitPriceCents: control.get('unitPriceCents')?.value
       };
 
-      if (this.isBlankLineItemValue(value)) {
+      if (this.isBlankLineItemInputValue(value)) {
         return null;
       }
 
-      return value.description?.trim() ? null : { descriptionRequired: true };
+      if (!value.description?.trim()) {
+        return { descriptionRequired: true };
+      }
+
+      if (value.kind === 'custom' && !value.kindLabel?.trim()) {
+        return { kindLabelRequired: true };
+      }
+
+      return null;
     };
   }
 
   private isBlankLineItemValue(value: Partial<JobLineItem>): boolean {
     const description = value.description?.trim() ?? '';
+    const kindLabel = value.kindLabel?.trim() ?? '';
     const kind = value.kind ?? 'labor';
     const quantity = Number(value.quantity ?? 1);
     const unitLabel = value.unitLabel?.trim() ?? 'hour';
     const unitPriceCents = normalizeCents(value.unitPriceCents ?? 0);
 
-    return !description && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPriceCents === 0;
+    return !description && !kindLabel && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPriceCents === 0;
+  }
+
+  private isBlankLineItemInputValue(value: Partial<JobLineItem>): boolean {
+    const description = value.description?.trim() ?? '';
+    const kindLabel = value.kindLabel?.trim() ?? '';
+    const kind = value.kind ?? 'labor';
+    const quantity = Number(value.quantity ?? 1);
+    const unitLabel = value.unitLabel?.trim() ?? 'hour';
+    const unitPriceCents = normalizeDollarsToCents(value.unitPriceCents ?? 0);
+
+    return !description && !kindLabel && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPriceCents === 0;
+  }
+
+  private lineItemsDiffer(currentLineItems: JobLineItem[], invoiceLineItems: JobLineItem[]): boolean {
+    return JSON.stringify(this.normalizeLineItems(currentLineItems)) !== JSON.stringify(this.normalizeLineItems(invoiceLineItems));
+  }
+
+  private normalizeLineItems(lineItems: JobLineItem[]) {
+    return lineItems.map((lineItem) => {
+      const quantity = Number(lineItem.quantity ?? 0);
+      const unitPriceCents = normalizeCents(lineItem.unitPriceCents ?? 0);
+
+      return {
+        kind: lineItem.kind,
+        kindLabel: lineItem.kind === 'custom' ? (lineItem.kindLabel?.trim() ?? '') : '',
+        description: lineItem.description.trim(),
+        quantity,
+        unitLabel: lineItem.unitLabel.trim(),
+        unitPriceCents,
+        totalCents: calculateLineTotal(quantity, unitPriceCents)
+      };
+    });
+  }
+
+  private invoiceDeleteFallbackStatus(job: JobRecord): JobStatus {
+    return job.status === 'invoiced' ? 'completed' : job.status;
+  }
+
+  private buildJobPayload(): JobUpsertInput | null {
+    if (this.form.invalid) {
+      this.error.set(this.i18n.instant('jobs.form.errors.validation'));
+      this.form.markAllAsTouched();
+      return null;
+    }
+
+    const value = this.form.getRawValue();
+    const clientId = value.clientId ?? '';
+    const title = value.title ?? '';
+    const startDate = value.startDate ?? '';
+    const endDate = value.endDate ?? '';
+    const line1 = value.line1 ?? '';
+    const city = value.city ?? '';
+    const state = value.state ?? '';
+    const postalCode = value.postalCode ?? '';
+
+    if (startDate > endDate) {
+      this.error.set(this.i18n.instant('jobs.form.errors.dateOrder'));
+      return null;
+    }
+
+    return {
+      clientId,
+      title: title.trim(),
+      status: (value.status ?? 'scheduled') as JobStatus,
+      startDate,
+      endDate,
+      address: line1.trim()
+        ? {
+            line1: line1.trim(),
+            line2: valueOrUndefined(value.line2),
+            city: city.trim(),
+            state: state.trim(),
+            postalCode: postalCode.trim()
+          }
+        : undefined,
+      description: valueOrUndefined(value.description),
+      notes: valueOrUndefined(value.notes),
+      lineItems: this.serializeLineItems()
+    };
+  }
+
+  private mergeJobWithPayload(job: JobRecord, payload: JobUpsertInput): JobRecord {
+    return {
+      ...job,
+      ...payload
+    };
   }
 
   private revokePreviewUrl(previewUrl: string): void {

@@ -17,6 +17,20 @@ export function normalizeCents(value: number | string): number {
   return Math.round(amount);
 }
 
+export function centsToDollarsAmount(cents: number): number {
+  return Number((normalizeCents(cents) / 100).toFixed(2));
+}
+
+export function normalizeDollarsToCents(value: number | string): number {
+  const amount = typeof value === 'string' ? Number(value) : value;
+
+  if (!Number.isFinite(amount)) {
+    return 0;
+  }
+
+  return Math.round(amount * 100);
+}
+
 export function calculateLineTotal(quantity: number, unitPriceCents: number): number {
   return Math.round(quantity * unitPriceCents);
 }

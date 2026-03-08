@@ -43,6 +43,7 @@ export interface ClientRecord {
 export interface JobLineItem {
   id: string;
   kind: LineItemKind;
+  kindLabel?: string;
   description: string;
   quantity: number;
   unitLabel: string;
@@ -99,6 +100,13 @@ export interface InvoiceJobSnapshot {
   description?: string;
 }
 
+export interface InvoiceBusinessSnapshot {
+  businessName: string;
+  contactEmail: string;
+  phone?: string;
+  mailingAddress?: PostalAddress;
+}
+
 export interface InvoiceRecord {
   id: string;
   invoiceNumber: string;
@@ -109,7 +117,8 @@ export interface InvoiceRecord {
   subtotalCents: number;
   clientSnapshot: InvoiceClientSnapshot;
   jobSnapshot: InvoiceJobSnapshot;
-  pdfStoragePath: string | null;
+  businessSnapshot?: InvoiceBusinessSnapshot;
+  pdfStoragePath?: string | null;
   issuedAt: Timestamp | null;
   paidAt: Timestamp | null;
   archivedAt: Timestamp | null;
@@ -117,11 +126,7 @@ export interface InvoiceRecord {
   updatedAt: Timestamp;
 }
 
-export interface BusinessProfile {
-  businessName: string;
-  contactEmail: string;
-  phone?: string;
-  mailingAddress?: PostalAddress;
+export interface BusinessProfile extends InvoiceBusinessSnapshot {
   invoicePrefix: string;
   nextInvoiceSequence: number;
 }

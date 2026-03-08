@@ -4,14 +4,13 @@ import {
   CollectionReference,
   DocumentReference,
   WithFieldValue,
+  deleteDoc,
   serverTimestamp,
   setDoc,
   updateDoc
 } from 'firebase/firestore';
-import { Storage } from '@angular/fire/storage';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { Observable } from 'rxjs';
-import { ClientRecord, InvoiceRecord, JobLineItem, JobRecord } from '../models';
+import { ClientRecord, InvoiceBusinessSnapshot, InvoiceRecord, JobLineItem, JobRecord } from '../models';
 import { sumLineItems } from '../utils/money.utils';
 import { stripUndefined } from '../utils/object.utils';
 import { SessionService } from './session.service';
@@ -19,7 +18,6 @@ import { SessionService } from './session.service';
 @Injectable({ providedIn: 'root' })
 export class InvoicesRepository {
   private readonly firestore = inject(Firestore);
-  private readonly storage = inject(Storage);
   private readonly session = inject(SessionService);
 
   observeInvoices(): Observable<InvoiceRecord[]> {
@@ -61,7 +59,6 @@ export class InvoicesRepository {
           endDate: job.endDate,
           description: job.description
         },
-        pdfStoragePath: null,
         issuedAt: null,
         paidAt: null,
         archivedAt: null,
@@ -89,7 +86,6 @@ export class InvoicesRepository {
         subtotalCents: sumLineItems(lineItems),
         clientSnapshot: sourceInvoice.clientSnapshot,
         jobSnapshot: sourceInvoice.jobSnapshot,
-        pdfStoragePath: null,
         issuedAt: null,
         paidAt: null,
         archivedAt: null,
@@ -109,21 +105,13 @@ export class InvoicesRepository {
     });
   }
 
-  async finalizeInvoice(invoiceId: string, pdfBytes: Blob): Promise<string> {
-    const uid = this.session.requireUid();
-    const storagePath = `users/${uid}/invoices/${invoiceId}/invoice.pdf`;
-    await uploadBytes(ref(this.storage, storagePath), pdfBytes, {
-      contentType: 'application/pdf'
-    });
-
-    await updateDoc(this.invoiceRef(uid, invoiceId), {
+  async finalizeInvoice(invoiceId: string, businessSnapshot: InvoiceBusinessSnapshot): Promise<void> {
+    await updateDoc(this.invoiceRef(this.session.requireUid(), invoiceId), {
       status: 'issued',
       issuedAt: serverTimestamp(),
-      pdfStoragePath: storagePath,
+      businessSnapshot,
       updatedAt: serverTimestamp()
     });
-
-    return storagePath;
   }
 
   async markPaid(invoiceId: string): Promise<void> {
@@ -157,8 +145,8 @@ export class InvoicesRepository {
     });
   }
 
-  async getPdfDownloadUrl(storagePath: string): Promise<string> {
-    return getDownloadURL(ref(this.storage, storagePath));
+  async deleteInvoice(invoiceId: string): Promise<void> {
+    await deleteDoc(this.invoiceRef(this.session.requireUid(), invoiceId));
   }
 
   private cloneLineItems(lineItems: JobLineItem[]): JobLineItem[] {

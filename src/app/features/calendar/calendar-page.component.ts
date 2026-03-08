@@ -26,7 +26,8 @@ import {
   InvoiceRecord,
   JobImageRecord,
   JobLineItem,
-  JobRecord
+  JobRecord,
+  JobStatus
 } from '../../core/models';
 import {
   addMonths,
@@ -37,7 +38,7 @@ import {
   startOfMonth,
   weekdayLabels as buildWeekdayLabels
 } from '../../core/utils/date.utils';
-import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
+import { calculateLineTotal, normalizeCents, toCurrency, sumLineItems } from '../../core/utils/money.utils';
 import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component';
 
 interface CalendarNavigationState {
@@ -219,7 +220,7 @@ interface CalendarNavigationState {
                     <strong>{{ lineItem.description }}</strong>
                     <strong>{{ lineItemTotalLabel(lineItem) }}</strong>
                   </div>
-                  <p>{{ ('lineItemKinds.' + lineItem.kind) | translate }}</p>
+                  <p>{{ lineItemKindLabel(lineItem) }}</p>
                   <p>{{ lineItemMeta(lineItem) }}</p>
                 </article>
               }
@@ -239,12 +240,26 @@ interface CalendarNavigationState {
         @if (selectedInvoice(); as invoice) {
           <article class="invoice-card">
             <div>
-              <strong>{{ 'jobs.invoiceNumber' | translate }} {{ invoice.invoiceNumber }}</strong>
+              <strong>{{ 'pdf.invoiceNumber' | translate }} {{ invoice.invoiceNumber }}</strong>
               <p>{{ ('invoiceStatus.' + invoice.status) | translate }}</p>
             </div>
-            <button type="button" class="secondary-button" (click)="viewInvoice(invoice.id)">
-              {{ 'calendar.selected.viewInvoice' | translate }}
-            </button>
+            <div class="actions wrap invoice-card-actions">
+              @if (canCreateInvoice(job)) {
+                <button
+                  type="button"
+                  class="secondary-button invoice-action-warning"
+                  (click)="createInvoice(job)"
+                >
+                  {{ 'jobs.form.createUpdatedInvoice' | translate }}
+                </button>
+              }
+              <button type="button" class="secondary-button" (click)="viewInvoice(invoice.id)">
+                {{ 'calendar.selected.viewInvoice' | translate }}
+              </button>
+              <button type="button" class="ghost-button invoice-action-danger" (click)="deleteInvoice(job)">
+                {{ 'common.delete' | translate }}
+              </button>
+            </div>
           </article>
         } @else {
           <div class="empty-state compact">
@@ -256,11 +271,26 @@ interface CalendarNavigationState {
                   : ('calendar.selected.sections.invoiceEmptyPending' | translate)
               }}
             </p>
-            @if (canCreateInvoice(job)) {
-              <button type="button" class="secondary-button" (click)="createInvoice(job)">
-                {{ 'calendar.selected.createInvoice' | translate }}
-              </button>
-            }
+            <div class="actions wrap">
+              @if (canCreateInvoice(job)) {
+                <button
+                  type="button"
+                  class="secondary-button invoice-action-warning"
+                  (click)="createInvoice(job)"
+                >
+                  {{
+                    job.invoiceId
+                      ? ('jobs.form.createUpdatedInvoice' | translate)
+                      : ('calendar.selected.createInvoice' | translate)
+                  }}
+                </button>
+              }
+              @if (job.invoiceId) {
+                <button type="button" class="ghost-button invoice-action-danger" (click)="deleteInvoice(job)">
+                  {{ 'common.delete' | translate }}
+                </button>
+              }
+            </div>
           </div>
         }
       </section>
@@ -490,6 +520,26 @@ interface CalendarNavigationState {
       .invoice-card p {
         margin: 0.2rem 0 0;
         color: var(--text-muted);
+      }
+
+      .invoice-card-actions {
+        justify-content: flex-end;
+      }
+
+      .invoice-action-warning {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--accent) 88%, #fff 12%) 0%,
+          color-mix(in srgb, var(--accent-strong) 86%, var(--accent) 14%) 100%
+        );
+        border-color: color-mix(in srgb, var(--accent-strong) 72%, transparent);
+        color: var(--accent-ink);
+      }
+
+      .invoice-action-danger {
+        background: color-mix(in srgb, var(--danger) 88%, var(--panel) 12%);
+        border-color: color-mix(in srgb, var(--danger) 72%, transparent);
+        color: #fff5f5;
       }
 
       .expandable-sections {
@@ -913,10 +963,7 @@ export class CalendarPageComponent {
   }
 
   closeSelectedJob(): void {
-    this.message.set('');
-    this.error.set('');
-    this.editingJobId.set(null);
-    this.selectedJobId.set(null);
+    this.resetSelectedJobState();
     void this.updateSelectedJobQueryParam(null);
   }
 
@@ -927,7 +974,7 @@ export class CalendarPageComponent {
       const navigated = await this.router.navigate(['/invoices', invoiceId]);
 
       if (navigated) {
-        this.closeSelectedJob();
+        this.resetSelectedJobState();
         return;
       }
 
@@ -968,12 +1015,30 @@ export class CalendarPageComponent {
     return `${lineItem.quantity} ${lineItem.unitLabel} x ${toCurrency(lineItem.unitPriceCents)}`;
   }
 
+  lineItemKindLabel(lineItem: JobLineItem): string {
+    if (lineItem.kind === 'custom' && lineItem.kindLabel?.trim()) {
+      return lineItem.kindLabel.trim();
+    }
+
+    return this.i18n.instant(`lineItemKinds.${lineItem.kind}`);
+  }
+
   lineItemTotalLabel(lineItem: JobLineItem): string {
     return toCurrency(lineItem.totalCents);
   }
 
   canCreateInvoice(job: JobRecord): boolean {
-    return job.status === 'completed' && !job.invoiceId;
+    const invoice = this.selectedInvoice();
+
+    if (job.archivedAt || (job.status !== 'completed' && job.status !== 'invoiced')) {
+      return false;
+    }
+
+    if (!job.invoiceId || !invoice) {
+      return true;
+    }
+
+    return this.lineItemsDiffer(job.lineItems, invoice.lineItems);
   }
 
   handleJobFormSaved(event: JobFormSavedEvent): void {
@@ -1001,6 +1066,34 @@ export class CalendarPageComponent {
       this.error.set(error instanceof Error ? error.message : this.i18n.instant('calendar.errors.createInvoice'));
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  async deleteInvoice(job: JobRecord): Promise<void> {
+    if (!job.invoiceId) {
+      return;
+    }
+
+    const invoice = this.selectedInvoice();
+    const confirmed = window.confirm(
+      invoice
+        ? this.i18n.instant('jobs.form.confirmDeleteInvoice', { invoiceNumber: invoice.invoiceNumber })
+        : this.i18n.instant('jobs.form.confirmDeleteInvoiceFallback')
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.message.set('');
+    this.error.set('');
+
+    try {
+      await this.invoicesRepository.deleteInvoice(job.invoiceId);
+      await this.jobsRepository.clearJobInvoice(job.id, this.invoiceDeleteFallbackStatus(job));
+      this.message.set(this.i18n.instant('jobs.form.invoiceDeleted'));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.deleteInvoice'));
     }
   }
 
@@ -1057,6 +1150,38 @@ export class CalendarPageComponent {
     }
 
     return columns.trim().split(/\s+/).length;
+  }
+
+  private resetSelectedJobState(): void {
+    this.message.set('');
+    this.error.set('');
+    this.editingJobId.set(null);
+    this.selectedJobId.set(null);
+  }
+
+  private lineItemsDiffer(currentLineItems: JobLineItem[], invoiceLineItems: JobLineItem[]): boolean {
+    return JSON.stringify(this.normalizeLineItems(currentLineItems)) !== JSON.stringify(this.normalizeLineItems(invoiceLineItems));
+  }
+
+  private normalizeLineItems(lineItems: JobLineItem[]) {
+    return lineItems.map((lineItem) => {
+      const quantity = Number(lineItem.quantity ?? 0);
+      const unitPriceCents = normalizeCents(lineItem.unitPriceCents ?? 0);
+
+      return {
+        kind: lineItem.kind,
+        kindLabel: lineItem.kind === 'custom' ? (lineItem.kindLabel?.trim() ?? '') : '',
+        description: lineItem.description.trim(),
+        quantity,
+        unitLabel: lineItem.unitLabel.trim(),
+        unitPriceCents,
+        totalCents: calculateLineTotal(quantity, unitPriceCents)
+      };
+    });
+  }
+
+  private invoiceDeleteFallbackStatus(job: JobRecord): JobStatus {
+    return job.status === 'invoiced' ? 'completed' : job.status;
   }
 
   private async loadThumb(jobId: string, imageId: string): Promise<void> {
