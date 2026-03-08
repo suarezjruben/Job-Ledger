@@ -32,6 +32,8 @@ interface JobFormNavigationState {
               [initialStartDate]="startDate()"
               [initialEndDate]="endDate()"
               [initialError]="initialError()"
+              [readonlyMode]="readonlyMode()"
+              [source]="source()"
               [showExistingActions]="true"
               (cancelled)="close()"
               (saved)="handleSaved($event)"
@@ -84,6 +86,13 @@ export class JobFormPageComponent {
         this.route.snapshot.queryParamMap.get('end') ?? this.route.snapshot.queryParamMap.get('start') ?? ''
     }
   );
+  readonly readonlyMode = toSignal(
+    this.route.queryParamMap.pipe(map((params) => this.parseReadonlyFlag(params.get('readonly')))),
+    { initialValue: this.parseReadonlyFlag(this.route.snapshot.queryParamMap.get('readonly')) }
+  );
+  readonly source = toSignal(this.route.queryParamMap.pipe(map((params) => params.get('source') ?? '')), {
+    initialValue: this.route.snapshot.queryParamMap.get('source') ?? ''
+  });
 
   constructor() {
     this.consumeNavigationState();
@@ -110,6 +119,11 @@ export class JobFormPageComponent {
       return;
     }
 
+    if (this.source() === 'history') {
+      await this.router.navigate(['/history']);
+      return;
+    }
+
     await this.router.navigate(['/calendar']);
   }
 
@@ -130,5 +144,9 @@ export class JobFormPageComponent {
 
   private shouldUseHistoryBack(): boolean {
     return (this.document.defaultView?.history.state?.navigationId ?? 0) > 1;
+  }
+
+  private parseReadonlyFlag(value: string | null): boolean {
+    return value === '1' || value === 'true';
   }
 }

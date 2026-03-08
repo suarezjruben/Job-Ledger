@@ -24,17 +24,20 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
         [attr.aria-label]="'common.close' | translate"
       ></button>
 
-      <div class="route-modal-shell route-modal-shell--narrow">
+      <div class="route-modal-shell route-modal-shell--narrow client-form-shell">
         <section class="page-grid single">
-          <article class="panel stack-lg">
-            <div class="page-header">
+          <article class="panel stack-lg modal-panel client-form-panel">
+            <div class="page-header modal-header">
               <div>
                 <p class="eyebrow">{{ 'clients.form.eyebrow' | translate }}</p>
                 <h2>{{ isEdit() ? ('clients.form.editTitle' | translate) : ('clients.form.createTitle' | translate) }}</h2>
               </div>
 
-              <button type="button" class="ghost-button" (click)="close()">
-                {{ 'common.close' | translate }}
+              <button type="button" class="ghost-button modal-close-button" (click)="close()">
+                <span class="modal-close-label">{{ 'common.close' | translate }}</span>
+                <svg class="modal-close-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18"></path>
+                </svg>
               </button>
             </div>
 
@@ -142,7 +145,21 @@ import { valueOrUndefined } from '../../core/utils/object.utils';
         </section>
       </div>
     </section>
-  `
+  `,
+  styles: [
+    `
+      .client-form-shell {
+        overflow: hidden;
+      }
+
+      .panel.client-form-panel {
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+      }
+    `
+  ]
 })
 export class ClientFormPageComponent {
   private readonly fb = inject(FormBuilder);

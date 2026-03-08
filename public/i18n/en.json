@@ -78,13 +78,15 @@
     "edit": "Edit",
     "view": "View",
     "open": "Open",
+    "actions": "Actions",
     "search": "Search",
     "notes": "Notes",
     "description": "Description",
     "kind": "Kind",
     "unitLabel": "Unit label",
     "quantity": "Quantity",
-    "rateCents": "Rate (cents)",
+    "rate": "Rate",
+    "customKind": "Custom kind",
     "remove": "Remove",
     "cancel": "Cancel",
     "saving": "Saving...",
@@ -189,7 +191,8 @@
     },
     "errors": {
       "missingClient": "This job is missing a client record.",
-      "createInvoice": "Unable to create invoice."
+      "createInvoice": "Unable to create invoice.",
+      "viewInvoice": "Unable to open invoice."
     }
   },
   "clients": {
@@ -308,6 +311,7 @@
         "job": "Job snapshot"
       },
       "errors": {
+        "validation": "Complete the required line item fields before saving the invoice.",
         "saveDraft": "Unable to save draft.",
         "issue": "Unable to issue invoice.",
         "download": "Unable to download invoice.",
@@ -325,6 +329,10 @@
       "editTitle": "Update job",
       "viewInvoice": "View invoice",
       "createInvoice": "Create invoice",
+      "createUpdatedInvoice": "Generate new invoice",
+      "confirmDeleteInvoice": "Delete invoice {{invoiceNumber}}?",
+      "confirmDeleteInvoiceFallback": "Delete the linked invoice?",
+      "invoiceDeleted": "Invoice deleted.",
       "selectClient": "Select a client",
       "fields": {
         "title": "Job title",
@@ -350,6 +358,7 @@
         "save": "Unable to save job.",
         "missingClient": "The linked client record could not be found.",
         "createInvoice": "Unable to create invoice.",
+        "deleteInvoice": "Unable to delete invoice.",
         "archive": "Unable to archive job.",
         "restore": "Unable to restore job."
       }

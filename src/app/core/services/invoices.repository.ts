@@ -4,14 +4,13 @@ import {
   CollectionReference,
   DocumentReference,
   WithFieldValue,
+  deleteDoc,
   serverTimestamp,
   setDoc,
   updateDoc
 } from 'firebase/firestore';
-import { Storage } from '@angular/fire/storage';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { Observable } from 'rxjs';
-import { ClientRecord, InvoiceRecord, JobLineItem, JobRecord } from '../models';
+import { ClientRecord, InvoiceBusinessSnapshot, InvoiceRecord, JobLineItem, JobRecord } from '../models';
 import { sumLineItems } from '../utils/money.utils';
 import { stripUndefined } from '../utils/object.utils';
 import { SessionService } from './session.service';
@@ -19,7 +18,6 @@ import { SessionService } from './session.service';
 @Injectable({ providedIn: 'root' })
 export class InvoicesRepository {
   private readonly firestore = inject(Firestore);
-  private readonly storage = inject(Storage);
   private readonly session = inject(SessionService);
 
   observeInvoices(): Observable<InvoiceRecord[]> {
@@ -46,7 +44,7 @@ export class InvoicesRepository {
         clientId: client.id,
         status: 'draft',
         lineItems,
-        subtotalCents: sumLineItems(lineItems),
+        subtotal: sumLineItems(lineItems),
         clientSnapshot: {
           displayName: client.displayName,
           companyName: client.companyName,
@@ -61,7 +59,6 @@ export class InvoicesRepository {
           endDate: job.endDate,
           description: job.description
         },
-        pdfStoragePath: null,
         issuedAt: null,
         paidAt: null,
         archivedAt: null,
@@ -86,10 +83,9 @@ export class InvoicesRepository {
         clientId: sourceInvoice.clientId,
         status: 'draft',
         lineItems,
-        subtotalCents: sumLineItems(lineItems),
+        subtotal: sumLineItems(lineItems),
         clientSnapshot: sourceInvoice.clientSnapshot,
         jobSnapshot: sourceInvoice.jobSnapshot,
-        pdfStoragePath: null,
         issuedAt: null,
         paidAt: null,
         archivedAt: null,
@@ -102,28 +98,28 @@ export class InvoicesRepository {
   }
 
   async updateDraft(invoiceId: string, lineItems: JobLineItem[]): Promise<void> {
-    await updateDoc(this.invoiceRef(this.session.requireUid(), invoiceId), {
-      lineItems: this.cloneLineItems(lineItems),
-      subtotalCents: sumLineItems(lineItems),
-      updatedAt: serverTimestamp()
-    });
+    const sanitizedLineItems = this.cloneLineItems(lineItems);
+
+    await updateDoc(
+      this.invoiceRef(this.session.requireUid(), invoiceId),
+      stripUndefined({
+        lineItems: sanitizedLineItems,
+        subtotal: sumLineItems(sanitizedLineItems),
+        updatedAt: serverTimestamp()
+      }) as Partial<InvoiceRecord>
+    );
   }
 
-  async finalizeInvoice(invoiceId: string, pdfBytes: Blob): Promise<string> {
-    const uid = this.session.requireUid();
-    const storagePath = `users/${uid}/invoices/${invoiceId}/invoice.pdf`;
-    await uploadBytes(ref(this.storage, storagePath), pdfBytes, {
-      contentType: 'application/pdf'
-    });
-
-    await updateDoc(this.invoiceRef(uid, invoiceId), {
-      status: 'issued',
-      issuedAt: serverTimestamp(),
-      pdfStoragePath: storagePath,
-      updatedAt: serverTimestamp()
-    });
-
-    return storagePath;
+  async finalizeInvoice(invoiceId: string, businessSnapshot: InvoiceBusinessSnapshot): Promise<void> {
+    await updateDoc(
+      this.invoiceRef(this.session.requireUid(), invoiceId),
+      stripUndefined({
+        status: 'issued',
+        issuedAt: serverTimestamp(),
+        businessSnapshot,
+        updatedAt: serverTimestamp()
+      }) as Partial<InvoiceRecord>
+    );
   }
 
   async markPaid(invoiceId: string): Promise<void> {
@@ -157,12 +153,12 @@ export class InvoicesRepository {
     });
   }
 
-  async getPdfDownloadUrl(storagePath: string): Promise<string> {
-    return getDownloadURL(ref(this.storage, storagePath));
+  async deleteInvoice(invoiceId: string): Promise<void> {
+    await deleteDoc(this.invoiceRef(this.session.requireUid(), invoiceId));
   }
 
   private cloneLineItems(lineItems: JobLineItem[]): JobLineItem[] {
-    return lineItems.map((lineItem) => ({ ...lineItem }));
+    return lineItems.map((lineItem) => stripUndefined({ ...lineItem }) as JobLineItem);
   }
 
   private invoicesCollection(uid: string): CollectionReference<InvoiceRecord> {

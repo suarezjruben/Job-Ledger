@@ -2,12 +2,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
+  HostListener,
   computed,
   effect,
   inject,
   input,
   output,
-  signal
+  signal,
+  viewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormArray, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
@@ -17,17 +20,24 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { of, switchMap } from 'rxjs';
 import {
   ClientRecord,
+  InvoiceRecord,
   JOB_STATUSES,
   JobImageRecord,
   JobLineItem,
+  JobRecord,
   JobStatus
 } from '../../core/models';
 import { AppI18nService } from '../../core/services/app-i18n.service';
 import { ClientsRepository } from '../../core/services/clients.repository';
 import { InvoiceWorkflowService } from '../../core/services/invoice-workflow.service';
+import { InvoicesRepository } from '../../core/services/invoices.repository';
 import { JobImagesRepository } from '../../core/services/job-images.repository';
-import { JobsRepository } from '../../core/services/jobs.repository';
-import { calculateLineTotal, normalizeCents, toCurrency } from '../../core/utils/money.utils';
+import { JobsRepository, JobUpsertInput } from '../../core/services/jobs.repository';
+import {
+  calculateLineTotal,
+  normalizeAmount,
+  toCurrency
+} from '../../core/utils/money.utils';
 import { valueOrUndefined } from '../../core/utils/object.utils';
 
 const MAX_JOB_IMAGES = 10;
@@ -58,34 +68,164 @@ export interface JobFormSavedEvent {
         </div>
 
         <div class="actions wrap job-form-header-actions">
-          @if (showExistingJobActions() && currentJob(); as job) {
-            @if (job.invoiceId) {
-              <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
-                {{ 'jobs.form.viewInvoice' | translate }}
-              </a>
-            } @else if (canCreateInvoice()) {
-              <button type="button" class="secondary-button" (click)="createInvoice()">
-                {{ 'jobs.form.createInvoice' | translate }}
-              </button>
-            }
+          <div class="actions wrap job-form-header-buttons" [class.job-form-header-buttons--mobile-menu]="useHistoryActionMenu()">
+            @if (showExistingJobActions() && currentJob(); as job) {
+              @if (job.invoiceId && currentInvoice()) {
+                <a class="secondary-button" [routerLink]="['/invoices', job.invoiceId]">
+                  {{ 'jobs.form.viewInvoice' | translate }}
+                </a>
+                @if (!isReadonly()) {
+                  <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
+                    {{ 'common.delete' | translate }}
+                  </button>
+                  @if (canCreateInvoice()) {
+                    <button type="button" class="secondary-button" (click)="createInvoice()">
+                      {{ 'jobs.form.createUpdatedInvoice' | translate }}
+                    </button>
+                  }
+                }
+              } @else {
+                @if (!isReadonly()) {
+                  @if (canCreateInvoice()) {
+                    <button type="button" class="secondary-button" (click)="createInvoice()">
+                      {{
+                        job.invoiceId
+                          ? ('jobs.form.createUpdatedInvoice' | translate)
+                          : ('jobs.form.createInvoice' | translate)
+                      }}
+                    </button>
+                  }
+                  @if (job.invoiceId) {
+                    <button type="button" class="ghost-button" (click)="deleteInvoice(job)">
+                      {{ 'common.delete' | translate }}
+                    </button>
+                  }
+                }
+              }
 
-            @if (job.archivedAt) {
-              <button type="button" class="ghost-button" (click)="restoreJob()">
-                {{ 'common.restore' | translate }}
-              </button>
-            } @else {
-              <button type="button" class="ghost-button" (click)="archiveJob()">
-                {{ 'common.archive' | translate }}
+              @if (!isReadonly()) {
+                @if (job.archivedAt) {
+                  <button type="button" class="ghost-button" (click)="restoreJob()">
+                    {{ 'common.restore' | translate }}
+                  </button>
+                } @else {
+                  <button type="button" class="ghost-button" (click)="archiveJob()">
+                    {{ 'common.archive' | translate }}
+                  </button>
+                }
+              }
+            }
+          </div>
+
+          <div
+            class="actions wrap job-form-header-primary-actions"
+            [class.job-form-header-primary-actions--mobile-menu]="useHistoryActionMenu()"
+          >
+            <button
+              type="button"
+              class="ghost-button job-form-header-close-action"
+              (click)="requestClose()"
+            >
+              {{ (isReadonly() ? 'common.close' : 'common.cancel') | translate }}
+            </button>
+            @if (!isReadonly()) {
+              <button
+                type="submit"
+                class="primary-button job-form-header-save-action"
+                [class.job-form-header-save-action--mobile-menu]="useHistoryActionMenu()"
+                [disabled]="saving()"
+              >
+                {{ submitLabel() }}
               </button>
             }
+          </div>
+
+          @if (useHistoryActionMenu()) {
+            <div class="job-form-mobile-actions" #headerActionsMenuHost>
+              <button
+                type="button"
+                class="secondary-button job-form-mobile-actions__trigger"
+                (click)="toggleHeaderActionsMenu($event)"
+                [attr.aria-expanded]="headerActionsMenuOpen()"
+                aria-haspopup="dialog"
+                [attr.aria-label]="'common.actions' | translate"
+              >
+                {{ 'common.actions' | translate }}
+              </button>
+
+              @if (headerActionsMenuOpen()) {
+                <section class="job-actions-menu" role="dialog" [attr.aria-label]="'common.actions' | translate">
+                  <div class="job-actions-menu__title">
+                    <p class="eyebrow">{{ 'common.actions' | translate }}</p>
+                  </div>
+
+                  <div class="stack-sm job-actions-menu__items">
+                    @if (showExistingJobActions() && currentJob(); as job) {
+                      @if (job.invoiceId && currentInvoice()) {
+                        <a
+                          class="secondary-button job-actions-menu__item"
+                          [routerLink]="['/invoices', job.invoiceId]"
+                          (click)="closeHeaderActionsMenu()"
+                        >
+                          {{ 'jobs.form.viewInvoice' | translate }}
+                        </a>
+                        @if (!isReadonly()) {
+                          <button type="button" class="ghost-button job-actions-menu__item" (click)="deleteInvoiceFromMenu(job)">
+                            {{ 'common.delete' | translate }}
+                          </button>
+                          @if (canCreateInvoice()) {
+                            <button type="button" class="secondary-button job-actions-menu__item" (click)="createInvoiceFromMenu()">
+                              {{ 'jobs.form.createUpdatedInvoice' | translate }}
+                            </button>
+                          }
+                        }
+                      } @else {
+                        @if (!isReadonly()) {
+                          @if (canCreateInvoice()) {
+                            <button type="button" class="secondary-button job-actions-menu__item" (click)="createInvoiceFromMenu()">
+                              {{
+                                job.invoiceId
+                                  ? ('jobs.form.createUpdatedInvoice' | translate)
+                                  : ('jobs.form.createInvoice' | translate)
+                              }}
+                            </button>
+                          }
+                          @if (job.invoiceId) {
+                            <button type="button" class="ghost-button job-actions-menu__item" (click)="deleteInvoiceFromMenu(job)">
+                              {{ 'common.delete' | translate }}
+                            </button>
+                          }
+                        }
+                      }
+
+                      @if (!isReadonly()) {
+                        @if (job.archivedAt) {
+                          <button type="button" class="ghost-button job-actions-menu__item" (click)="restoreJobFromMenu()">
+                            {{ 'common.restore' | translate }}
+                          </button>
+                        } @else {
+                          <button type="button" class="ghost-button job-actions-menu__item" (click)="archiveJobFromMenu()">
+                            {{ 'common.archive' | translate }}
+                          </button>
+                        }
+                      }
+                    }
+
+                    @if (!isReadonly()) {
+                      <button
+                        type="submit"
+                        class="primary-button job-actions-menu__item job-actions-menu__item--save"
+                        [disabled]="saving()"
+                        (click)="closeHeaderActionsMenu()"
+                      >
+                        {{ submitLabel() }}
+                      </button>
+                    }
+                  </div>
+                </section>
+              }
+            </div>
           }
-
-          <button type="button" class="ghost-button" (click)="requestClose()">
-            {{ 'common.cancel' | translate }}
-          </button>
-          <button type="submit" class="primary-button" [disabled]="saving()">
-            {{ submitLabel() }}
-          </button>
         </div>
       </div>
 
@@ -164,9 +304,11 @@ export interface JobFormSavedEvent {
       <div class="stack-md">
         <div class="section-heading">
           <h3>{{ 'jobs.form.lineItems.title' | translate }}</h3>
-          <button type="button" class="secondary-button" (click)="addLineItem()">
-            {{ 'jobs.form.lineItems.add' | translate }}
-          </button>
+          @if (!isReadonly()) {
+            <button type="button" class="secondary-button" (click)="addLineItem()">
+              {{ 'jobs.form.lineItems.add' | translate }}
+            </button>
+          }
         </div>
 
         <div class="stack-md" formArrayName="lineItems">
@@ -190,6 +332,13 @@ export interface JobFormSavedEvent {
                 </select>
               </label>
 
+              @if (lineItem.get('kind')?.value === 'custom') {
+                <label class="field">
+                  <span>{{ 'common.customKind' | translate }}</span>
+                  <input type="text" formControlName="kindLabel" />
+                </label>
+              }
+
               <label class="field">
                 <span>{{ 'common.unitLabel' | translate }}</span>
                 <input type="text" formControlName="unitLabel" />
@@ -201,15 +350,17 @@ export interface JobFormSavedEvent {
               </label>
 
               <label class="field">
-                <span>{{ 'common.rateCents' | translate }}</span>
-                <input type="number" min="0" step="1" formControlName="unitPriceCents" />
+                <span>{{ 'common.rate' | translate }}</span>
+                <input type="number" min="0" step="0.01" formControlName="unitPrice" />
               </label>
 
               <div class="line-item-total">
                 <strong>{{ lineTotal(i) }}</strong>
-                <button type="button" class="ghost-button" (click)="removeLineItem(i)">
-                  {{ 'common.remove' | translate }}
-                </button>
+                @if (!isReadonly()) {
+                  <button type="button" class="ghost-button" (click)="removeLineItem(i)">
+                    {{ 'common.remove' | translate }}
+                  </button>
+                }
               </div>
             </div>
           }
@@ -239,17 +390,19 @@ export interface JobFormSavedEvent {
         </div>
 
         <div class="image-picker-strip">
-          <label class="image-picker-tile" [title]="'jobs.images.uploadLabel' | translate">
-            <input
-              class="visually-hidden"
-              type="file"
-              accept="image/*"
-              (change)="stageImage($event)"
-            />
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path [attr.d]="plusIcon"></path>
-            </svg>
-          </label>
+          @if (!isReadonly()) {
+            <label class="image-picker-tile" [title]="'jobs.images.uploadLabel' | translate">
+              <input
+                class="visually-hidden"
+                type="file"
+                accept="image/*"
+                (change)="stageImage($event)"
+              />
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path [attr.d]="plusIcon"></path>
+              </svg>
+            </label>
+          }
 
           @for (draft of stagedImages(); track draft.id) {
             <article class="image-staged-tile" [title]="draft.file.name">
@@ -259,17 +412,19 @@ export interface JobFormSavedEvent {
                 [alt]="'jobs.images.thumbnailAlt' | translate"
                 loading="lazy"
               />
-              <button
-                type="button"
-                class="image-tile-remove"
-                (click)="removeStagedImage(draft.id)"
-                [attr.aria-label]="'common.delete' | translate"
-                [title]="'common.delete' | translate"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path [attr.d]="closeIcon"></path>
-                </svg>
-              </button>
+              @if (!isReadonly()) {
+                <button
+                  type="button"
+                  class="image-tile-remove"
+                  (click)="removeStagedImage(draft.id)"
+                  [attr.aria-label]="'common.delete' | translate"
+                  [title]="'common.delete' | translate"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="closeIcon"></path>
+                  </svg>
+                </button>
+              }
             </article>
           }
 
@@ -293,17 +448,19 @@ export interface JobFormSavedEvent {
                 } @else {
                   <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
                 }
-                <button
-                  type="button"
-                  class="image-tile-remove"
-                  (click)="deleteImage(image)"
-                  [attr.aria-label]="'common.delete' | translate"
-                  [title]="'common.delete' | translate"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path [attr.d]="closeIcon"></path>
-                  </svg>
-                </button>
+                @if (!isReadonly()) {
+                  <button
+                    type="button"
+                    class="image-tile-remove"
+                    (click)="deleteImage(image)"
+                    [attr.aria-label]="'common.delete' | translate"
+                    [title]="'common.delete' | translate"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path [attr.d]="closeIcon"></path>
+                    </svg>
+                  </button>
+                }
               </article>
             }
           }
@@ -353,9 +510,58 @@ export interface JobFormSavedEvent {
         align-self: flex-start;
       }
 
+      .job-form-header-buttons {
+        justify-content: flex-end;
+      }
+
+      .job-form-header-primary-actions {
+        justify-content: flex-end;
+      }
+
+      .job-form-header-close-action,
+      .job-form-header-save-action {
+        min-width: 100px;
+      }
+
+      .job-form-mobile-actions {
+        display: none;
+        position: relative;
+      }
+
+      .job-form-mobile-actions__trigger {
+        min-width: 120px;
+      }
+
+      .job-actions-menu {
+        position: absolute;
+        top: calc(100% + 0.7rem);
+        right: 0;
+        z-index: 8;
+        width: min(18rem, calc(100vw - 3rem));
+        padding: 1rem;
+        border-radius: 1.2rem;
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .job-actions-menu__title {
+        margin-bottom: 0.75rem;
+      }
+
+      .job-actions-menu__items {
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .job-actions-menu__item {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
       .line-item-grid {
         display: grid;
-        grid-template-columns: 2fr repeat(4, minmax(0, 1fr)) auto;
+        grid-template-columns: 2fr repeat(5, minmax(0, 1fr)) auto;
         gap: 0.85rem;
         align-items: end;
         padding: 1rem;
@@ -510,6 +716,47 @@ export interface JobFormSavedEvent {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
+
+      @media (max-width: 900px) {
+        .job-form-header-buttons--mobile-menu {
+          display: none;
+        }
+
+        .job-form-mobile-actions {
+          display: block;
+          margin-left: auto;
+        }
+
+        .job-actions-menu {
+          width: min(18rem, calc(100vw - 2rem));
+        }
+      }
+
+      @media (max-width: 900px) and (orientation: portrait) {
+        .job-form-header-close-action,
+        .job-form-mobile-actions__trigger {
+          width: 120px;
+          min-width: 120px;
+        }
+
+        .job-form-header-save-action--mobile-menu {
+          display: none;
+        }
+      }
+
+      @media (max-width: 900px) and (orientation: landscape) {
+        .job-actions-menu {
+          width: min(28rem, calc(100vw - 2rem));
+        }
+
+        .job-actions-menu__items {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .job-actions-menu__item--save {
+          display: none;
+        }
+      }
     `
   ]
 })
@@ -521,6 +768,7 @@ export class JobFormComponent {
   private readonly clientsRepository = inject(ClientsRepository);
   private readonly imagesRepository = inject(JobImagesRepository);
   private readonly invoiceWorkflow = inject(InvoiceWorkflowService);
+  private readonly invoicesRepository = inject(InvoicesRepository);
   private readonly i18n = inject(AppI18nService);
   private readonly thumbLoadingIds = new Set<string>();
   private readonly lastPatchedJobId = signal<string | null>(null);
@@ -531,6 +779,8 @@ export class JobFormComponent {
   readonly initialStartDate = input('');
   readonly initialEndDate = input('');
   readonly initialError = input<string | null>(null);
+  readonly readonlyMode = input(false);
+  readonly source = input('');
   readonly showExistingActions = input(false);
 
   readonly cancelled = output<void>();
@@ -549,6 +799,15 @@ export class JobFormComponent {
     ),
     { initialValue: undefined }
   );
+  readonly currentInvoiceId = computed(() => this.currentJob()?.invoiceId ?? null);
+  readonly currentInvoice = toSignal(
+    toObservable(this.currentInvoiceId).pipe(
+      switchMap((invoiceId) =>
+        invoiceId ? this.invoicesRepository.observeInvoice(invoiceId) : of(undefined as InvoiceRecord | undefined)
+      )
+    ),
+    { initialValue: undefined as InvoiceRecord | undefined }
+  );
 
   readonly images = toSignal(
     toObservable(this.jobId).pipe(
@@ -562,6 +821,7 @@ export class JobFormComponent {
   });
 
   readonly isEdit = computed(() => Boolean(this.jobId()));
+  readonly isReadonly = computed(() => this.readonlyMode());
   readonly activeClients = computed(() => this.clients().filter((client) => !client.archivedAt));
   readonly pageTitle = computed(() =>
     this.isEdit() ? this.i18n.instant('jobs.form.editTitle') : this.i18n.instant('jobs.form.createTitle')
@@ -577,8 +837,11 @@ export class JobFormComponent {
     () => Boolean(this.showExistingActions() && this.isEdit() && this.currentJob())
   );
   readonly totalImageCount = computed(() => this.images().length + this.stagedImages().length);
+  readonly useHistoryActionMenu = computed(() => this.source() === 'history');
+  readonly headerActionsMenuOpen = signal(false);
   readonly plusIcon = 'M12 5v14M5 12h14';
   readonly closeIcon = 'M6 6l12 12M18 6 6 18';
+  private readonly headerActionsMenuRef = viewChild<ElementRef<HTMLElement>>('headerActionsMenuHost');
 
   readonly form = this.fb.group({
     clientId: ['', Validators.required],
@@ -612,6 +875,7 @@ export class JobFormComponent {
 
     effect(() => {
       const job = this.currentJob();
+      const isReadonly = this.isReadonly();
 
       if (!job || this.lastPatchedJobId() === job.id) {
         return;
@@ -623,7 +887,7 @@ export class JobFormComponent {
         title: job.title,
         startDate: job.startDate,
         endDate: job.endDate,
-        status: job.status === 'archived' ? 'scheduled' : job.status,
+        status: isReadonly ? job.status : job.status === 'archived' ? 'scheduled' : job.status,
         line1: job.address?.line1 ?? '',
         line2: job.address?.line2 ?? '',
         city: job.address?.city ?? '',
@@ -705,6 +969,21 @@ export class JobFormComponent {
         void this.loadThumb(jobId, image.id);
       }
     });
+
+    effect(() => {
+      if (this.isReadonly()) {
+        this.form.disable({ emitEvent: false });
+        return;
+      }
+
+      this.form.enable({ emitEvent: false });
+    });
+
+    effect(() => {
+      this.source();
+      this.currentJob();
+      this.headerActionsMenuOpen.set(false);
+    });
   }
 
   get lineItems(): FormArray {
@@ -712,17 +991,26 @@ export class JobFormComponent {
   }
 
   addLineItem(): void {
+    if (this.isReadonly()) {
+      return;
+    }
+
     this.lineItems.push(this.createLineItemGroup());
   }
 
   removeLineItem(index: number): void {
+    if (this.isReadonly()) {
+      return;
+    }
+
     if (this.lineItems.length === 1) {
       this.lineItems.at(0).reset({
         kind: 'labor',
+        kindLabel: '',
         description: '',
         quantity: 1,
         unitLabel: 'hour',
-        unitPriceCents: 0
+        unitPrice: 0
       });
       return;
     }
@@ -733,41 +1021,46 @@ export class JobFormComponent {
   lineTotal(index: number): string {
     const group = this.lineItems.at(index);
     const quantity = Number(group.get('quantity')?.value ?? 0);
-    const unitPriceCents = normalizeCents(group.get('unitPriceCents')?.value ?? 0);
-    return toCurrency(calculateLineTotal(quantity, unitPriceCents));
+    const unitPrice = normalizeAmount(group.get('unitPrice')?.value ?? 0);
+    return toCurrency(calculateLineTotal(quantity, unitPrice));
   }
 
   subtotal(): string {
-    return toCurrency(this.serializeLineItems().reduce((sum, lineItem) => sum + lineItem.totalCents, 0));
+    return toCurrency(this.serializeLineItems().reduce((sum, lineItem) => sum + lineItem.total, 0));
   }
 
   canCreateInvoice(): boolean {
+    if (this.isReadonly()) {
+      return false;
+    }
+
     const job = this.currentJob();
-    return Boolean(job && job.status === 'completed' && !job.invoiceId);
+    const currentInvoice = this.currentInvoice();
+    const status = (this.form.get('status')?.value as JobStatus | null) ?? job?.status;
+    const currentLineItems = this.serializeLineItems();
+
+    if (!job || job.archivedAt || (status !== 'completed' && status !== 'invoiced')) {
+      return false;
+    }
+
+    if (!job.invoiceId || !currentInvoice) {
+      return true;
+    }
+
+    return this.lineItemsDiffer(currentLineItems, currentInvoice.lineItems);
   }
 
   async save(): Promise<void> {
-    this.error.set('');
-    this.message.set('');
-
-    if (this.form.invalid) {
-      this.error.set(this.i18n.instant('jobs.form.errors.validation'));
-      this.form.markAllAsTouched();
+    if (this.isReadonly()) {
       return;
     }
 
-    const value = this.form.getRawValue();
-    const clientId = value.clientId ?? '';
-    const title = value.title ?? '';
-    const startDate = value.startDate ?? '';
-    const endDate = value.endDate ?? '';
-    const line1 = value.line1 ?? '';
-    const city = value.city ?? '';
-    const state = value.state ?? '';
-    const postalCode = value.postalCode ?? '';
+    this.error.set('');
+    this.message.set('');
 
-    if (startDate > endDate) {
-      this.error.set(this.i18n.instant('jobs.form.errors.dateOrder'));
+    const payload = this.buildJobPayload();
+
+    if (!payload) {
       return;
     }
 
@@ -775,25 +1068,6 @@ export class JobFormComponent {
 
     try {
       let activeJobId = this.jobId();
-      const payload = {
-        clientId,
-        title: title.trim(),
-        status: (value.status ?? 'scheduled') as JobStatus,
-        startDate,
-        endDate,
-        address: line1.trim()
-          ? {
-              line1: line1.trim(),
-              line2: valueOrUndefined(value.line2),
-              city: city.trim(),
-              state: state.trim(),
-              postalCode: postalCode.trim()
-            }
-          : undefined,
-        description: valueOrUndefined(value.description),
-        notes: valueOrUndefined(value.notes),
-        lineItems: this.serializeLineItems()
-      };
 
       if (this.isEdit() && activeJobId) {
         await this.jobsRepository.updateJob(activeJobId, payload);
@@ -828,9 +1102,13 @@ export class JobFormComponent {
   }
 
   async createInvoice(): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const job = this.currentJob();
 
-    if (!job) {
+    if (!job || !this.canCreateInvoice()) {
       return;
     }
 
@@ -841,15 +1119,58 @@ export class JobFormComponent {
       return;
     }
 
+    const payload = this.buildJobPayload();
+
+    if (!payload) {
+      return;
+    }
+
     try {
-      const invoiceId = await this.invoiceWorkflow.createDraftForJob(job, client);
+      await this.jobsRepository.updateJob(job.id, payload);
+      const invoiceId = await this.invoiceWorkflow.createDraftForJob(this.mergeJobWithPayload(job, payload), client);
       await this.router.navigate(['/invoices', invoiceId]);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.createInvoice'));
     }
   }
 
+  async deleteInvoice(job: JobRecord): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
+    if (!job.invoiceId) {
+      return;
+    }
+
+    const invoice = this.currentInvoice();
+    const confirmed = window.confirm(
+      invoice
+        ? this.i18n.instant('jobs.form.confirmDeleteInvoice', { invoiceNumber: invoice.invoiceNumber })
+        : this.i18n.instant('jobs.form.confirmDeleteInvoiceFallback')
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.error.set('');
+    this.message.set('');
+
+    try {
+      await this.invoicesRepository.deleteInvoice(job.invoiceId);
+      await this.jobsRepository.clearJobInvoice(job.id, this.invoiceDeleteFallbackStatus(job));
+      this.message.set(this.i18n.instant('jobs.form.invoiceDeleted'));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.deleteInvoice'));
+    }
+  }
+
   stageImage(event: Event): void {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
@@ -882,6 +1203,10 @@ export class JobFormComponent {
   }
 
   removeStagedImage(stagedImageId: string): void {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const stagedImage = this.stagedImages().find((entry) => entry.id === stagedImageId);
 
     if (!stagedImage) {
@@ -910,6 +1235,10 @@ export class JobFormComponent {
   }
 
   async deleteImage(image: JobImageRecord): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const jobId = this.jobId();
 
     if (!jobId) {
@@ -936,6 +1265,10 @@ export class JobFormComponent {
   }
 
   async archiveJob(): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const jobId = this.jobId();
 
     if (!jobId) {
@@ -951,6 +1284,10 @@ export class JobFormComponent {
   }
 
   async restoreJob(): Promise<void> {
+    if (this.isReadonly()) {
+      return;
+    }
+
     const jobId = this.jobId();
 
     if (!jobId) {
@@ -966,6 +1303,55 @@ export class JobFormComponent {
 
   requestClose(): void {
     this.cancelled.emit();
+  }
+
+  toggleHeaderActionsMenu(event: Event): void {
+    event.stopPropagation();
+    this.headerActionsMenuOpen.update((open) => !open);
+  }
+
+  closeHeaderActionsMenu(): void {
+    this.headerActionsMenuOpen.set(false);
+  }
+
+  async createInvoiceFromMenu(): Promise<void> {
+    this.closeHeaderActionsMenu();
+    await this.createInvoice();
+  }
+
+  async deleteInvoiceFromMenu(job: JobRecord): Promise<void> {
+    this.closeHeaderActionsMenu();
+    await this.deleteInvoice(job);
+  }
+
+  async archiveJobFromMenu(): Promise<void> {
+    this.closeHeaderActionsMenu();
+    await this.archiveJob();
+  }
+
+  async restoreJobFromMenu(): Promise<void> {
+    this.closeHeaderActionsMenu();
+    await this.restoreJob();
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent): void {
+    if (!this.headerActionsMenuOpen()) {
+      return;
+    }
+
+    const menuHost = this.headerActionsMenuRef()?.nativeElement;
+
+    if (!menuHost || menuHost.contains(event.target as Node)) {
+      return;
+    }
+
+    this.closeHeaderActionsMenu();
+  }
+
+  @HostListener('document:keydown.escape')
+  handleEscape(): void {
+    this.closeHeaderActionsMenu();
   }
 
   private async loadThumb(jobId: string, imageId: string): Promise<void> {
@@ -1014,10 +1400,11 @@ export class JobFormComponent {
       {
         id: [lineItem?.id ?? crypto.randomUUID()],
         kind: [lineItem?.kind ?? 'labor', Validators.required],
+        kindLabel: [lineItem?.kind === 'custom' ? (lineItem.kindLabel ?? '') : ''],
         description: [lineItem?.description ?? ''],
         quantity: [lineItem?.quantity ?? 1, [Validators.required, Validators.min(0)]],
         unitLabel: [lineItem?.unitLabel ?? 'hour', Validators.required],
-        unitPriceCents: [lineItem?.unitPriceCents ?? 0, [Validators.required, Validators.min(0)]]
+        unitPrice: [normalizeAmount(lineItem?.unitPrice ?? 0), [Validators.required, Validators.min(0)]]
       },
       {
         validators: [this.optionalLineItemValidator()]
@@ -1029,16 +1416,19 @@ export class JobFormComponent {
     return this.lineItems.controls
       .map((control) => {
         const quantity = Number(control.get('quantity')?.value ?? 0);
-        const unitPriceCents = normalizeCents(control.get('unitPriceCents')?.value ?? 0);
+        const unitPrice = normalizeAmount(control.get('unitPrice')?.value ?? 0);
+        const kind = control.get('kind')?.value;
+        const kindLabel = control.get('kindLabel')?.value?.trim() ?? '';
 
         return {
           id: control.get('id')?.value ?? crypto.randomUUID(),
-          kind: control.get('kind')?.value,
+          kind,
+          kindLabel: kind === 'custom' ? valueOrUndefined(kindLabel) : undefined,
           description: control.get('description')?.value?.trim() ?? '',
           quantity,
           unitLabel: control.get('unitLabel')?.value?.trim() ?? '',
-          unitPriceCents,
-          totalCents: calculateLineTotal(quantity, unitPriceCents)
+          unitPrice,
+          total: calculateLineTotal(quantity, unitPrice)
         };
       })
       .filter((lineItem) => !this.isBlankLineItemValue(lineItem));
@@ -1048,28 +1438,124 @@ export class JobFormComponent {
     return (control: AbstractControl): ValidationErrors | null => {
       const value = {
         kind: control.get('kind')?.value,
+        kindLabel: control.get('kindLabel')?.value,
         description: control.get('description')?.value,
         quantity: control.get('quantity')?.value,
         unitLabel: control.get('unitLabel')?.value,
-        unitPriceCents: control.get('unitPriceCents')?.value
+        unitPrice: control.get('unitPrice')?.value
       };
 
-      if (this.isBlankLineItemValue(value)) {
+      if (this.isBlankLineItemInputValue(value)) {
         return null;
       }
 
-      return value.description?.trim() ? null : { descriptionRequired: true };
+      if (!value.description?.trim()) {
+        return { descriptionRequired: true };
+      }
+
+      if (value.kind === 'custom' && !value.kindLabel?.trim()) {
+        return { kindLabelRequired: true };
+      }
+
+      return null;
     };
   }
 
   private isBlankLineItemValue(value: Partial<JobLineItem>): boolean {
     const description = value.description?.trim() ?? '';
+    const kindLabel = value.kindLabel?.trim() ?? '';
     const kind = value.kind ?? 'labor';
     const quantity = Number(value.quantity ?? 1);
     const unitLabel = value.unitLabel?.trim() ?? 'hour';
-    const unitPriceCents = normalizeCents(value.unitPriceCents ?? 0);
+    const unitPrice = normalizeAmount(value.unitPrice ?? 0);
 
-    return !description && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPriceCents === 0;
+    return !description && !kindLabel && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPrice === 0;
+  }
+
+  private isBlankLineItemInputValue(value: Partial<JobLineItem>): boolean {
+    const description = value.description?.trim() ?? '';
+    const kindLabel = value.kindLabel?.trim() ?? '';
+    const kind = value.kind ?? 'labor';
+    const quantity = Number(value.quantity ?? 1);
+    const unitLabel = value.unitLabel?.trim() ?? 'hour';
+    const unitPrice = normalizeAmount(value.unitPrice ?? 0);
+
+    return !description && !kindLabel && kind === 'labor' && quantity === 1 && unitLabel === 'hour' && unitPrice === 0;
+  }
+
+  private lineItemsDiffer(currentLineItems: JobLineItem[], invoiceLineItems: JobLineItem[]): boolean {
+    return JSON.stringify(this.normalizeLineItems(currentLineItems)) !== JSON.stringify(this.normalizeLineItems(invoiceLineItems));
+  }
+
+  private normalizeLineItems(lineItems: JobLineItem[]) {
+    return lineItems.map((lineItem) => {
+      const quantity = Number(lineItem.quantity ?? 0);
+      const unitPrice = normalizeAmount(lineItem.unitPrice ?? 0);
+
+      return {
+        kind: lineItem.kind,
+        kindLabel: lineItem.kind === 'custom' ? (lineItem.kindLabel?.trim() ?? '') : '',
+        description: lineItem.description.trim(),
+        quantity,
+        unitLabel: lineItem.unitLabel.trim(),
+        unitPrice,
+        total: calculateLineTotal(quantity, unitPrice)
+      };
+    });
+  }
+
+  private invoiceDeleteFallbackStatus(job: JobRecord): JobStatus {
+    return job.status === 'invoiced' ? 'completed' : job.status;
+  }
+
+  private buildJobPayload(): JobUpsertInput | null {
+    if (this.form.invalid) {
+      this.error.set(this.i18n.instant('jobs.form.errors.validation'));
+      this.form.markAllAsTouched();
+      return null;
+    }
+
+    const value = this.form.getRawValue();
+    const clientId = value.clientId ?? '';
+    const title = value.title ?? '';
+    const startDate = value.startDate ?? '';
+    const endDate = value.endDate ?? '';
+    const line1 = value.line1 ?? '';
+    const city = value.city ?? '';
+    const state = value.state ?? '';
+    const postalCode = value.postalCode ?? '';
+
+    if (startDate > endDate) {
+      this.error.set(this.i18n.instant('jobs.form.errors.dateOrder'));
+      return null;
+    }
+
+    return {
+      clientId,
+      title: title.trim(),
+      status: (value.status ?? 'scheduled') as JobStatus,
+      startDate,
+      endDate,
+      address: line1.trim()
+        ? {
+            line1: line1.trim(),
+            line2: valueOrUndefined(value.line2),
+            city: city.trim(),
+            state: state.trim(),
+            postalCode: postalCode.trim()
+          }
+        : undefined,
+      description: valueOrUndefined(value.description),
+      notes: valueOrUndefined(value.notes),
+      lineItems: this.serializeLineItems()
+    };
+  }
+
+  private mergeJobWithPayload(job: JobRecord, payload: JobUpsertInput): JobRecord {
+    return {
+      ...job,
+      ...payload
+    };
   }
 
   private revokePreviewUrl(previewUrl: string): void {

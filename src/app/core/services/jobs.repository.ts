@@ -95,6 +95,14 @@ export class JobsRepository {
     });
   }
 
+  async clearJobInvoice(jobId: string, status: JobStatus = 'completed'): Promise<void> {
+    await updateDoc(this.jobRef(this.session.requireUid(), jobId), {
+      invoiceId: null,
+      status,
+      updatedAt: serverTimestamp()
+    });
+  }
+
   private jobsCollection(uid: string): CollectionReference<JobRecord> {
     return collection(this.firestore, `users/${uid}/jobs`) as CollectionReference<JobRecord>;
   }

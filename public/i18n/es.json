@@ -78,13 +78,15 @@
     "edit": "Editar",
     "view": "Ver",
     "open": "Abrir",
+    "actions": "Acciones",
     "search": "Buscar",
     "notes": "Notas",
     "description": "Descripción",
     "kind": "Tipo",
     "unitLabel": "Unidad",
     "quantity": "Cantidad",
-    "rateCents": "Tarifa (centavos)",
+    "rate": "Tarifa",
+    "customKind": "Tipo personalizado",
     "remove": "Quitar",
     "cancel": "Cancelar",
     "saving": "Guardando...",
@@ -189,7 +191,8 @@
     },
     "errors": {
       "missingClient": "A este trabajo le falta el registro del cliente.",
-      "createInvoice": "No se pudo crear la factura."
+      "createInvoice": "No se pudo crear la factura.",
+      "viewInvoice": "No se pudo abrir la factura."
     }
   },
   "clients": {
@@ -308,6 +311,7 @@
         "job": "Instantánea del trabajo"
       },
       "errors": {
+        "validation": "Completa los campos requeridos del concepto antes de guardar la factura.",
         "saveDraft": "No se pudo guardar el borrador.",
         "issue": "No se pudo emitir la factura.",
         "download": "No se pudo descargar la factura.",
@@ -325,6 +329,10 @@
       "editTitle": "Actualizar trabajo",
       "viewInvoice": "Ver factura",
       "createInvoice": "Crear factura",
+      "createUpdatedInvoice": "Generar nueva factura",
+      "confirmDeleteInvoice": "¿Eliminar la factura {{invoiceNumber}}?",
+      "confirmDeleteInvoiceFallback": "¿Eliminar la factura vinculada?",
+      "invoiceDeleted": "Se eliminó la factura.",
       "selectClient": "Selecciona un cliente",
       "fields": {
         "title": "Título del trabajo",
@@ -350,6 +358,7 @@
         "save": "No se pudo guardar el trabajo.",
         "missingClient": "No se encontró el registro del cliente vinculado.",
         "createInvoice": "No se pudo crear la factura.",
+        "deleteInvoice": "No se pudo eliminar la factura.",
         "archive": "No se pudo archivar el trabajo.",
         "restore": "No se pudo restaurar el trabajo."
       }

@@ -1,6 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { BusinessProfile, ClientRecord, InvoiceRecord, JobRecord } from '../models';
+import {
+  BusinessProfile,
+  ClientRecord,
+  InvoiceBusinessSnapshot,
+  InvoiceRecord,
+  JobRecord
+} from '../models';
+import { stripUndefined } from '../utils/object.utils';
 import { AppI18nService } from './app-i18n.service';
 import { BusinessProfileRepository } from './business-profile.repository';
 import { InvoicePdfService } from './invoice-pdf.service';
@@ -30,34 +37,58 @@ export class InvoiceWorkflowService {
   }
 
   async finalizeInvoice(invoice: InvoiceRecord, profile?: BusinessProfile | null): Promise<void> {
-    const businessProfile =
-      profile ?? (await firstValueFrom(this.businessProfiles.observeProfile()));
+    const businessSnapshot = await this.resolveBusinessSnapshotFromProfile(
+      profile,
+      'pdf.errors.missingProfileIssue'
+    );
 
-    if (!businessProfile) {
-      throw new Error(this.i18n.instant('pdf.errors.missingProfileIssue'));
-    }
+    const issuedInvoice: InvoiceRecord = {
+      ...invoice,
+      status: 'issued',
+      businessSnapshot
+    };
 
-    const pdfBlob = this.pdf.buildInvoicePdf(invoice, businessProfile);
-    await this.invoices.finalizeInvoice(invoice.id, pdfBlob);
+    const pdfBlob = this.pdf.buildInvoicePdf(issuedInvoice, businessSnapshot);
+    await this.invoices.finalizeInvoice(invoice.id, businessSnapshot);
     await this.jobs.setJobInvoice(invoice.jobId, invoice.id, 'invoiced');
     this.pdf.triggerDownload(pdfBlob, `${invoice.invoiceNumber}.pdf`);
   }
 
   async downloadPdf(invoice: InvoiceRecord, profile?: BusinessProfile | null): Promise<void> {
-    if (invoice.pdfStoragePath) {
-      const url = await this.invoices.getPdfDownloadUrl(invoice.pdfStoragePath);
-      window.open(url, '_blank', 'noopener');
-      return;
-    }
+    const businessSnapshot =
+      invoice.businessSnapshot ??
+      (await this.resolveBusinessSnapshotFromProfile(profile, 'pdf.errors.missingProfileDownload'));
+    const pdfBlob = this.pdf.buildInvoicePdf(invoice, businessSnapshot);
+    this.pdf.triggerDownload(pdfBlob, `${invoice.invoiceNumber}.pdf`);
+  }
 
-    const businessProfile =
-      profile ?? (await firstValueFrom(this.businessProfiles.observeProfile()));
+  private async resolveBusinessSnapshotFromProfile(
+    profile: BusinessProfile | null | undefined,
+    missingProfileKey: string
+  ): Promise<InvoiceBusinessSnapshot> {
+    const businessProfile = profile ?? (await firstValueFrom(this.businessProfiles.observeProfile()));
 
     if (!businessProfile) {
-      throw new Error(this.i18n.instant('pdf.errors.missingProfileDownload'));
+      throw new Error(this.i18n.instant(missingProfileKey));
     }
 
-    const pdfBlob = this.pdf.buildInvoicePdf(invoice, businessProfile);
-    this.pdf.triggerDownload(pdfBlob, `${invoice.invoiceNumber}.pdf`);
+    return this.toBusinessSnapshot(businessProfile);
+  }
+
+  private toBusinessSnapshot(profile: BusinessProfile): InvoiceBusinessSnapshot {
+    const businessSnapshot: InvoiceBusinessSnapshot = {
+      businessName: profile.businessName,
+      contactEmail: profile.contactEmail
+    };
+
+    if (profile.phone) {
+      businessSnapshot.phone = profile.phone;
+    }
+
+    if (profile.mailingAddress) {
+      businessSnapshot.mailingAddress = profile.mailingAddress;
+    }
+
+    return stripUndefined(businessSnapshot);
   }
 }

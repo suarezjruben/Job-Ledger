@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import jsPDF from 'jspdf';
-import { BusinessProfile, InvoiceRecord } from '../models';
+import { InvoiceBusinessSnapshot, InvoiceRecord } from '../models';
 import { formatDateRange } from '../utils/date.utils';
 import { toCurrency } from '../utils/money.utils';
 import { AppI18nService } from './app-i18n.service';
@@ -9,7 +9,7 @@ import { AppI18nService } from './app-i18n.service';
 export class InvoicePdfService {
   private readonly i18n = inject(AppI18nService);
 
-  buildInvoicePdf(invoice: InvoiceRecord, profile: BusinessProfile): Blob {
+  buildInvoicePdf(invoice: InvoiceRecord, businessSnapshot: InvoiceBusinessSnapshot): Blob {
     const document = new jsPDF({
       unit: 'pt',
       format: 'letter'
@@ -23,19 +23,19 @@ export class InvoicePdfService {
 
     document.setFont('helvetica', 'bold');
     document.setFontSize(24);
-    document.text(profile.businessName || 'JobLedger Contractor', margin, cursorY);
+    document.text(businessSnapshot.businessName || 'JobLedger Contractor', margin, cursorY);
 
     document.setFont('helvetica', 'normal');
     document.setFontSize(11);
     cursorY += 18;
 
     const businessLines = [
-      profile.contactEmail,
-      profile.phone,
-      profile.mailingAddress?.line1,
-      profile.mailingAddress?.line2,
-      profile.mailingAddress
-        ? `${profile.mailingAddress.city}, ${profile.mailingAddress.state} ${profile.mailingAddress.postalCode}`
+      businessSnapshot.contactEmail,
+      businessSnapshot.phone,
+      businessSnapshot.mailingAddress?.line1,
+      businessSnapshot.mailingAddress?.line2,
+      businessSnapshot.mailingAddress
+        ? `${businessSnapshot.mailingAddress.city}, ${businessSnapshot.mailingAddress.state} ${businessSnapshot.mailingAddress.postalCode}`
         : undefined
     ].filter(Boolean) as string[];
 
@@ -140,8 +140,8 @@ export class InvoicePdfService {
       document.text(lineItem.description, margin, cursorY);
       document.text(lineItem.unitLabel, margin + 270, cursorY);
       document.text(String(lineItem.quantity), margin + 360, cursorY, { align: 'right' });
-      document.text(toCurrency(lineItem.unitPriceCents), margin + 450, cursorY, { align: 'right' });
-      document.text(toCurrency(lineItem.totalCents), rightColumn, cursorY, { align: 'right' });
+      document.text(toCurrency(lineItem.unitPrice), margin + 450, cursorY, { align: 'right' });
+      document.text(toCurrency(lineItem.total), rightColumn, cursorY, { align: 'right' });
       cursorY += 18;
     }
 
@@ -150,7 +150,7 @@ export class InvoicePdfService {
     cursorY += 22;
     document.setFont('helvetica', 'bold');
     document.text(this.i18n.instant('common.subtotal'), rightColumn - 88, cursorY, { align: 'right' });
-    document.text(toCurrency(invoice.subtotalCents), rightColumn, cursorY, { align: 'right' });
+    document.text(toCurrency(invoice.subtotal), rightColumn, cursorY, { align: 'right' });
 
     return document.output('blob');
   }

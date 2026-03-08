@@ -11,7 +11,7 @@ import {
   viewChild
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { map, of, switchMap } from 'rxjs';
@@ -26,7 +26,8 @@ import {
   InvoiceRecord,
   JobImageRecord,
   JobLineItem,
-  JobRecord
+  JobRecord,
+  JobStatus
 } from '../../core/models';
 import {
   addMonths,
@@ -37,7 +38,7 @@ import {
   startOfMonth,
   weekdayLabels as buildWeekdayLabels
 } from '../../core/utils/date.utils';
-import { toCurrency, sumLineItems } from '../../core/utils/money.utils';
+import { calculateLineTotal, normalizeAmount, toCurrency, sumLineItems } from '../../core/utils/money.utils';
 import { JobFormComponent, JobFormSavedEvent } from '../jobs/job-form.component';
 
 interface CalendarNavigationState {
@@ -47,7 +48,7 @@ interface CalendarNavigationState {
 @Component({
   selector: 'app-calendar-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslatePipe, JobFormComponent],
+  imports: [CommonModule, TranslatePipe, JobFormComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page-grid single">
@@ -133,20 +134,20 @@ interface CalendarNavigationState {
     </section>
 
     <ng-template #selectedJobDetails let-job>
-      <div class="page-header calendar-dialog-header">
+      <div class="page-header calendar-dialog-header modal-header">
         <div>
           <p class="eyebrow">{{ 'calendar.selected.eyebrow' | translate }}</p>
           <h2>{{ job.title }}</h2>
         </div>
         <button
           type="button"
-          class="secondary-button calendar-dialog-close"
+          class="ghost-button modal-close-button"
           (click)="closeSelectedJob()"
           [attr.aria-label]="'common.close' | translate"
           [title]="'common.close' | translate"
         >
-          <span class="calendar-dialog-close-label">{{ 'common.close' | translate }}</span>
-          <svg class="calendar-dialog-close-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <span class="modal-close-label">{{ 'common.close' | translate }}</span>
+          <svg class="modal-close-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path [attr.d]="closeIcon"></path>
           </svg>
         </button>
@@ -219,7 +220,7 @@ interface CalendarNavigationState {
                     <strong>{{ lineItem.description }}</strong>
                     <strong>{{ lineItemTotalLabel(lineItem) }}</strong>
                   </div>
-                  <p>{{ ('lineItemKinds.' + lineItem.kind) | translate }}</p>
+                  <p>{{ lineItemKindLabel(lineItem) }}</p>
                   <p>{{ lineItemMeta(lineItem) }}</p>
                 </article>
               }
@@ -239,12 +240,26 @@ interface CalendarNavigationState {
         @if (selectedInvoice(); as invoice) {
           <article class="invoice-card">
             <div>
-              <strong>{{ 'jobs.invoiceNumber' | translate }} {{ invoice.invoiceNumber }}</strong>
+              <strong>{{ 'pdf.invoiceNumber' | translate }} {{ invoice.invoiceNumber }}</strong>
               <p>{{ ('invoiceStatus.' + invoice.status) | translate }}</p>
             </div>
-            <a class="secondary-button" [routerLink]="['/invoices', invoice.id]" (click)="closeSelectedJob()">
-              {{ 'calendar.selected.viewInvoice' | translate }}
-            </a>
+            <div class="actions wrap invoice-card-actions">
+              @if (canCreateInvoice(job)) {
+                <button
+                  type="button"
+                  class="secondary-button invoice-action-warning"
+                  (click)="createInvoice(job)"
+                >
+                  {{ 'jobs.form.createUpdatedInvoice' | translate }}
+                </button>
+              }
+              <button type="button" class="secondary-button" (click)="viewInvoice(invoice.id)">
+                {{ 'calendar.selected.viewInvoice' | translate }}
+              </button>
+              <button type="button" class="ghost-button invoice-action-danger" (click)="deleteInvoice(job)">
+                {{ 'common.delete' | translate }}
+              </button>
+            </div>
           </article>
         } @else {
           <div class="empty-state compact">
@@ -256,11 +271,26 @@ interface CalendarNavigationState {
                   : ('calendar.selected.sections.invoiceEmptyPending' | translate)
               }}
             </p>
-            @if (canCreateInvoice(job)) {
-              <button type="button" class="secondary-button" (click)="createInvoice(job)">
-                {{ 'calendar.selected.createInvoice' | translate }}
-              </button>
-            }
+            <div class="actions wrap">
+              @if (canCreateInvoice(job)) {
+                <button
+                  type="button"
+                  class="secondary-button invoice-action-warning"
+                  (click)="createInvoice(job)"
+                >
+                  {{
+                    job.invoiceId
+                      ? ('jobs.form.createUpdatedInvoice' | translate)
+                      : ('calendar.selected.createInvoice' | translate)
+                  }}
+                </button>
+              }
+              @if (job.invoiceId) {
+                <button type="button" class="ghost-button invoice-action-danger" (click)="deleteInvoice(job)">
+                  {{ 'common.delete' | translate }}
+                </button>
+              }
+            </div>
           </div>
         }
       </section>
@@ -274,33 +304,35 @@ interface CalendarNavigationState {
           <span class="page-note">{{ 'jobs.images.count' | translate:{ count: selectedImages().length } }}</span>
         </div>
 
-        <div class="image-grid">
-          @for (image of selectedImages(); track image.id) {
-            <button
-              type="button"
-              class="image-thumb-button"
-              (click)="openImage(image)"
-              [attr.aria-label]="'common.open' | translate"
-              [title]="'common.open' | translate"
-            >
-              @if (thumbUrls()[image.id]; as thumbUrl) {
-                <img
-                  class="image-thumb"
-                  [src]="thumbUrl"
-                  [alt]="'jobs.images.thumbnailAlt' | translate"
-                  loading="lazy"
-                />
-              } @else {
-                <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
-              }
-            </button>
-          } @empty {
-            <div class="empty-state compact">
-              <h3>{{ 'jobs.images.empty.title' | translate }}</h3>
-              <p>{{ 'jobs.images.empty.body' | translate }}</p>
-            </div>
-          }
-        </div>
+        @if (selectedImages().length) {
+          <div class="image-grid">
+            @for (image of selectedImages(); track image.id) {
+              <button
+                type="button"
+                class="image-thumb-button"
+                (click)="openImage(image)"
+                [attr.aria-label]="'common.open' | translate"
+                [title]="'common.open' | translate"
+              >
+                @if (thumbUrls()[image.id]; as thumbUrl) {
+                  <img
+                    class="image-thumb"
+                    [src]="thumbUrl"
+                    [alt]="'jobs.images.thumbnailAlt' | translate"
+                    loading="lazy"
+                  />
+                } @else {
+                  <div class="image-thumb placeholder">{{ 'jobs.images.preview' | translate }}</div>
+                }
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="empty-state compact image-empty-state">
+            <h3>{{ 'jobs.images.empty.title' | translate }}</h3>
+            <p>{{ 'jobs.images.empty.body' | translate }}</p>
+          </div>
+        }
       </section>
 
       <div class="actions wrap calendar-detail-actions">
@@ -492,6 +524,26 @@ interface CalendarNavigationState {
         color: var(--text-muted);
       }
 
+      .invoice-card-actions {
+        justify-content: flex-end;
+      }
+
+      .invoice-action-warning {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--accent) 88%, #fff 12%) 0%,
+          color-mix(in srgb, var(--accent-strong) 86%, var(--accent) 14%) 100%
+        );
+        border-color: color-mix(in srgb, var(--accent-strong) 72%, transparent);
+        color: var(--accent-ink);
+      }
+
+      .invoice-action-danger {
+        background: color-mix(in srgb, var(--danger) 88%, var(--panel) 12%);
+        border-color: color-mix(in srgb, var(--danger) 72%, transparent);
+        color: #fff5f5;
+      }
+
       .expandable-sections {
         gap: 0.75rem;
       }
@@ -551,6 +603,10 @@ interface CalendarNavigationState {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
         gap: 0.75rem;
+      }
+
+      .image-empty-state {
+        width: 100%;
       }
 
       .image-thumb-button {
@@ -622,11 +678,12 @@ interface CalendarNavigationState {
         position: fixed;
         inset: 1rem;
         z-index: 71;
-        width: min(72rem, calc(100vw - 2rem));
-        max-width: 72rem;
+        width: min(var(--modal-max-width), calc(100vw - 2rem));
+        max-width: var(--modal-max-width);
         max-height: calc(100vh - 2rem);
         margin: 0 auto;
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
         padding: 0 1.4rem 1.4rem;
       }
 
@@ -637,40 +694,9 @@ interface CalendarNavigationState {
 
       .panel.calendar-dialog.calendar-edit-dialog {
         z-index: 73;
-        width: min(80rem, calc(100vw - 2rem));
-        max-width: 80rem;
+        width: min(var(--modal-max-width), calc(100vw - 2rem));
+        max-width: var(--modal-max-width);
         padding: 0 1.4rem 1.4rem;
-      }
-
-      .calendar-dialog-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: start;
-        gap: 1rem;
-        position: sticky;
-        top: 0;
-        z-index: 6;
-        margin: 0 -1.4rem 0;
-        padding: 0.85rem 1.4rem;
-        background:
-          linear-gradient(180deg, var(--panel) 0%, color-mix(in srgb, var(--panel) 92%, transparent) 100%);
-        border-bottom: 1px solid var(--panel-border);
-        backdrop-filter: blur(18px);
-      }
-
-      .calendar-dialog-close {
-        flex-shrink: 0;
-      }
-
-      .calendar-dialog-close-icon {
-        display: none;
-        width: 1.1rem;
-        height: 1.1rem;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
       }
 
       @media (max-width: 980px) {
@@ -695,27 +721,6 @@ interface CalendarNavigationState {
           inset: 0.75rem;
           max-height: calc(100vh - 1.5rem);
         }
-
-        .calendar-dialog-header {
-          flex-direction: row;
-          align-items: start;
-        }
-
-        .calendar-dialog-close {
-          width: 2.75rem;
-          min-width: 2.75rem;
-          min-height: 2.75rem;
-          padding: 0;
-          border-radius: 999px;
-        }
-
-        .calendar-dialog-close-label {
-          display: none;
-        }
-
-        .calendar-dialog-close-icon {
-          display: block;
-        }
       }
     `
   ]
@@ -733,6 +738,8 @@ export class CalendarPageComponent {
   private readonly i18n = inject(AppI18nService);
   private readonly calendarGridRef = viewChild<ElementRef<HTMLElement>>('calendarGrid');
   private readonly thumbLoadingIds = new Set<string>();
+  private readonly previousBodyOverflow = this.document.body.style.overflow;
+  private readonly previousHtmlOverflow = this.document.documentElement.style.overflow;
 
   readonly visibleMonth = signal(startOfMonth(new Date()));
   readonly selectedJobId = signal<string | null>(null);
@@ -869,6 +876,18 @@ export class CalendarPageComponent {
         void this.loadThumb(jobId, image.id);
       }
     });
+
+    effect(() => {
+      const hasOpenModal = Boolean(this.selectedJob() || this.editingJobId());
+
+      this.document.body.style.overflow = hasOpenModal ? 'hidden' : this.previousBodyOverflow;
+      this.document.documentElement.style.overflow = hasOpenModal ? 'hidden' : this.previousHtmlOverflow;
+    });
+
+    this.destroyRef.onDestroy(() => {
+      this.document.body.style.overflow = this.previousBodyOverflow;
+      this.document.documentElement.style.overflow = this.previousHtmlOverflow;
+    });
   }
 
   shiftMonth(delta: number): void {
@@ -913,11 +932,25 @@ export class CalendarPageComponent {
   }
 
   closeSelectedJob(): void {
-    this.message.set('');
-    this.error.set('');
-    this.editingJobId.set(null);
-    this.selectedJobId.set(null);
+    this.resetSelectedJobState();
     void this.updateSelectedJobQueryParam(null);
+  }
+
+  async viewInvoice(invoiceId: string): Promise<void> {
+    this.error.set('');
+
+    try {
+      const navigated = await this.router.navigate(['/invoices', invoiceId]);
+
+      if (navigated) {
+        this.resetSelectedJobState();
+        return;
+      }
+
+      this.error.set(this.i18n.instant('calendar.errors.viewInvoice'));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('calendar.errors.viewInvoice'));
+    }
   }
 
   clientName(clientId: string): string {
@@ -948,15 +981,33 @@ export class CalendarPageComponent {
   }
 
   lineItemMeta(lineItem: JobLineItem): string {
-    return `${lineItem.quantity} ${lineItem.unitLabel} x ${toCurrency(lineItem.unitPriceCents)}`;
+    return `${lineItem.quantity} ${lineItem.unitLabel} x ${toCurrency(lineItem.unitPrice)}`;
+  }
+
+  lineItemKindLabel(lineItem: JobLineItem): string {
+    if (lineItem.kind === 'custom' && lineItem.kindLabel?.trim()) {
+      return lineItem.kindLabel.trim();
+    }
+
+    return this.i18n.instant(`lineItemKinds.${lineItem.kind}`);
   }
 
   lineItemTotalLabel(lineItem: JobLineItem): string {
-    return toCurrency(lineItem.totalCents);
+    return toCurrency(lineItem.total);
   }
 
   canCreateInvoice(job: JobRecord): boolean {
-    return job.status === 'completed' && !job.invoiceId;
+    const invoice = this.selectedInvoice();
+
+    if (job.archivedAt || (job.status !== 'completed' && job.status !== 'invoiced')) {
+      return false;
+    }
+
+    if (!job.invoiceId || !invoice) {
+      return true;
+    }
+
+    return this.lineItemsDiffer(job.lineItems, invoice.lineItems);
   }
 
   handleJobFormSaved(event: JobFormSavedEvent): void {
@@ -984,6 +1035,34 @@ export class CalendarPageComponent {
       this.error.set(error instanceof Error ? error.message : this.i18n.instant('calendar.errors.createInvoice'));
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  async deleteInvoice(job: JobRecord): Promise<void> {
+    if (!job.invoiceId) {
+      return;
+    }
+
+    const invoice = this.selectedInvoice();
+    const confirmed = window.confirm(
+      invoice
+        ? this.i18n.instant('jobs.form.confirmDeleteInvoice', { invoiceNumber: invoice.invoiceNumber })
+        : this.i18n.instant('jobs.form.confirmDeleteInvoiceFallback')
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.message.set('');
+    this.error.set('');
+
+    try {
+      await this.invoicesRepository.deleteInvoice(job.invoiceId);
+      await this.jobsRepository.clearJobInvoice(job.id, this.invoiceDeleteFallbackStatus(job));
+      this.message.set(this.i18n.instant('jobs.form.invoiceDeleted'));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : this.i18n.instant('jobs.form.errors.deleteInvoice'));
     }
   }
 
@@ -1040,6 +1119,38 @@ export class CalendarPageComponent {
     }
 
     return columns.trim().split(/\s+/).length;
+  }
+
+  private resetSelectedJobState(): void {
+    this.message.set('');
+    this.error.set('');
+    this.editingJobId.set(null);
+    this.selectedJobId.set(null);
+  }
+
+  private lineItemsDiffer(currentLineItems: JobLineItem[], invoiceLineItems: JobLineItem[]): boolean {
+    return JSON.stringify(this.normalizeLineItems(currentLineItems)) !== JSON.stringify(this.normalizeLineItems(invoiceLineItems));
+  }
+
+  private normalizeLineItems(lineItems: JobLineItem[]) {
+    return lineItems.map((lineItem) => {
+      const quantity = Number(lineItem.quantity ?? 0);
+      const unitPrice = normalizeAmount(lineItem.unitPrice ?? 0);
+
+      return {
+        kind: lineItem.kind,
+        kindLabel: lineItem.kind === 'custom' ? (lineItem.kindLabel?.trim() ?? '') : '',
+        description: lineItem.description.trim(),
+        quantity,
+        unitLabel: lineItem.unitLabel.trim(),
+        unitPrice,
+        total: calculateLineTotal(quantity, unitPrice)
+      };
+    });
+  }
+
+  private invoiceDeleteFallbackStatus(job: JobRecord): JobStatus {
+    return job.status === 'invoiced' ? 'completed' : job.status;
   }
 
   private async loadThumb(jobId: string, imageId: string): Promise<void> {
